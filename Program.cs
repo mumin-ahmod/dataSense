@@ -1,5 +1,4 @@
 using DataSenseAPI.Services;
-using System.Net.Http;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -8,17 +7,16 @@ builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
-// Register services
-builder.Services.AddSingleton<ISchemaCacheService, SchemaCacheService>();
+// Register services for backend API (SDK integration only)
 builder.Services.AddHttpClient<OllamaService>();
 
+// Core services for backend functionality
 builder.Services.AddScoped<IOllamaService, OllamaService>();
-builder.Services.AddScoped<IDatabaseSchemaReader, DatabaseSchemaReader>();
-builder.Services.AddScoped<ISqlGeneratorService, SqlGeneratorService>();
 builder.Services.AddScoped<ISqlSafetyValidator, SqlSafetyValidator>();
-builder.Services.AddScoped<IQueryExecutor, QueryExecutor>();
-builder.Services.AddScoped<IResultAnalyzerService, ResultAnalyzerService>();
-builder.Services.AddScoped<IQueryParserService, QueryParserService>();
+
+// Backend services (for SDK integration)
+builder.Services.AddScoped<IBackendSqlGeneratorService, BackendSqlGeneratorService>();
+builder.Services.AddScoped<IBackendResultInterpreterService, BackendResultInterpreterService>();
 
 // Configure CORS
 builder.Services.AddCors(options =>
@@ -33,18 +31,11 @@ builder.Services.AddCors(options =>
 
 var app = builder.Build();
 
-// Initialize schema cache on startup
-try
-{
-    var schemaCache = app.Services.GetRequiredService<ISchemaCacheService>();
-    await schemaCache.RefreshSchemaAsync();
-    Console.WriteLine("✓ Database schema loaded successfully");
-}
-catch (Exception ex)
-{
-    Console.WriteLine($"⚠ Warning: Could not load database schema: {ex.Message}");
-    Console.WriteLine("   The API will work, but without schema information.");
-}
+// Note: Schema is provided by SDK clients, not loaded from database
+// Connection string configuration is reserved for future request logging
+Console.WriteLine("✓ DataSense Backend API ready");
+Console.WriteLine("  Endpoints: /api/v1/backend/generate-sql, /api/v1/backend/interpret-results");
+Console.WriteLine("  Connection string is reserved for request logging (to be implemented)");
 
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())

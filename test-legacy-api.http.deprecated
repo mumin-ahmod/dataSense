@@ -1,0 +1,20 @@
+### DEPRECATED - Old API tests (removed with QueryController)
+### Use test-backend-api.http instead for new backend endpoints
+
+### This file is kept for reference only
+### The old endpoints /api/query/* have been removed
+### 
+### Use the new backend API endpoints:
+### - POST /api/v1/backend/generate-sql
+### - POST /api/v1/backend/interpret-results
+### - GET /api/v1/backend/health
+###
+### See test-backend-api.http for examples
+
+### Old endpoints (removed):
+# POST /api/query/parse
+# POST /api/query/analyze
+# GET /api/query/health
+# GET /api/query/schema/refresh
+# GET /api/query/schema/status
+

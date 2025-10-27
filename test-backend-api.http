@@ -1,0 +1,324 @@
+### DataSense Backend API Test Requests
+### Base URL (update as needed)
+@baseUrl = http://localhost:5000
+@v1Endpoint = {{baseUrl}}/api/v1/backend
+
+###
+### 1. Health Check
+###
+GET {{v1Endpoint}}/health
+Content-Type: application/json
+
+###
+### 2. Generate SQL - Simple Query
+###
+POST {{v1Endpoint}}/generate-sql
+Content-Type: application/json
+
+{
+  "naturalQuery": "Show all employees",
+  "schema": {
+    "databaseName": "TestDB",
+    "tables": [
+      {
+        "name": "Employees",
+        "schema": "dbo",
+        "columns": [
+          {
+            "name": "Id",
+            "dataType": "int",
+            "isNullable": false,
+            "isPrimaryKey": true,
+            "maxLength": 0
+          },
+          {
+            "name": "FirstName",
+            "dataType": "nvarchar",
+            "isNullable": false,
+            "isPrimaryKey": false,
+            "maxLength": 50
+          },
+          {
+            "name": "LastName",
+            "dataType": "nvarchar",
+            "isNullable": false,
+            "isPrimaryKey": false,
+            "maxLength": 50
+          },
+          {
+            "name": "Department",
+            "dataType": "nvarchar",
+            "isNullable": true,
+            "isPrimaryKey": false,
+            "maxLength": 100
+          }
+        ],
+        "relationships": []
+      }
+    ]
+  },
+  "dbType": "sqlserver"
+}
+
+###
+### 3. Generate SQL - Complex Query with Joins
+###
+POST {{v1Endpoint}}/generate-sql
+Content-Type: application/json
+
+{
+  "naturalQuery": "Show total hours worked on Project Alpha last month",
+  "schema": {
+    "databaseName": "ProjectDB",
+    "tables": [
+      {
+        "name": "Projects",
+        "schema": "dbo",
+        "columns": [
+          {
+            "name": "ProjectId",
+            "dataType": "int",
+            "isNullable": false,
+            "isPrimaryKey": true,
+            "maxLength": 0
+          },
+          {
+            "name": "Name",
+            "dataType": "nvarchar",
+            "isNullable": false,
+            "isPrimaryKey": false,
+            "maxLength": 100
+          }
+        ],
+        "relationships": []
+      },
+      {
+        "name": "TimeEntries",
+        "schema": "dbo",
+        "columns": [
+          {
+            "name": "EntryId",
+            "dataType": "int",
+            "isNullable": false,
+            "isPrimaryKey": true,
+            "maxLength": 0
+          },
+          {
+            "name": "ProjectId",
+            "dataType": "int",
+            "isNullable": false,
+            "isPrimaryKey": false,
+            "maxLength": 0
+          },
+          {
+            "name": "Hours",
+            "dataType": "decimal",
+            "isNullable": false,
+            "isPrimaryKey": false,
+            "maxLength": 0
+          },
+          {
+            "name": "Date",
+            "dataType": "datetime",
+            "isNullable": false,
+            "isPrimaryKey": false,
+            "maxLength": 0
+          }
+        ],
+        "relationships": [
+          {
+            "foreignKeyTable": "TimeEntries",
+            "foreignKeyColumn": "ProjectId",
+            "primaryKeyTable": "Projects",
+            "primaryKeyColumn": "ProjectId"
+          }
+        ]
+      }
+    ]
+  },
+  "dbType": "sqlserver"
+}
+
+###
+### 4. Generate SQL - PostgreSQL Query
+###
+POST {{v1Endpoint}}/generate-sql
+Content-Type: application/json
+
+{
+  "naturalQuery": "List all customers who made purchases in the last 30 days",
+  "schema": {
+    "databaseName": "ECommerce",
+    "tables": [
+      {
+        "name": "customers",
+        "schema": "public",
+        "columns": [
+          {
+            "name": "customer_id",
+            "dataType": "serial",
+            "isNullable": false,
+            "isPrimaryKey": true,
+            "maxLength": 0
+          },
+          {
+            "name": "customer_name",
+            "dataType": "varchar",
+            "isNullable": false,
+            "isPrimaryKey": false,
+            "maxLength": 255
+          },
+          {
+            "name": "email",
+            "dataType": "varchar",
+            "isNullable": true,
+            "isPrimaryKey": false,
+            "maxLength": 255
+          }
+        ],
+        "relationships": []
+      },
+      {
+        "name": "orders",
+        "schema": "public",
+        "columns": [
+          {
+            "name": "order_id",
+            "dataType": "serial",
+            "isNullable": false,
+            "isPrimaryKey": true,
+            "maxLength": 0
+          },
+          {
+            "name": "customer_id",
+            "dataType": "integer",
+            "isNullable": false,
+            "isPrimaryKey": false,
+            "maxLength": 0
+          },
+          {
+            "name": "order_date",
+            "dataType": "timestamp",
+            "isNullable": false,
+            "isPrimaryKey": false,
+            "maxLength": 0
+          },
+          {
+            "name": "total_amount",
+            "dataType": "decimal",
+            "isNullable": false,
+            "isPrimaryKey": false,
+            "maxLength": 0
+          }
+        ],
+        "relationships": [
+          {
+            "foreignKeyTable": "orders",
+            "foreignKeyColumn": "customer_id",
+            "primaryKeyTable": "customers",
+            "primaryKeyColumn": "customer_id"
+          }
+        ]
+      }
+    ]
+  },
+  "dbType": "postgresql"
+}
+
+###
+### 5. Interpret Results - Success Case
+###
+POST {{v1Endpoint}}/interpret-results
+Content-Type: application/json
+
+{
+  "originalQuery": "Show total hours worked on Project Alpha last month",
+  "sqlQuery": "SELECT SUM(te.Hours) AS TotalHours FROM dbo.TimeEntries te INNER JOIN dbo.Projects p ON te.ProjectId = p.ProjectId WHERE p.Name = 'Project Alpha' AND te.Date >= DATEADD(MONTH, -1, GETDATE())",
+  "results": [
+    {
+      "TotalHours": 45.5
+    }
+  ],
+  "metadata": {
+    "execution_time_ms": 125,
+    "rows_returned": 1
+  }
+}
+
+###
+### 6. Interpret Results - Multiple Rows
+###
+POST {{v1Endpoint}}/interpret-results
+Content-Type: application/json
+
+{
+  "originalQuery": "Show all employees with their departments",
+  "sqlQuery": "SELECT FirstName, LastName, Department FROM dbo.Employees",
+  "results": [
+    {
+      "FirstName": "John",
+      "LastName": "Doe",
+      "Department": "Engineering"
+    },
+    {
+      "FirstName": "Jane",
+      "LastName": "Smith",
+      "Department": "Sales"
+    },
+    {
+      "FirstName": "Bob",
+      "LastName": "Johnson",
+      "Department": "Marketing"
+    },
+    {
+      "FirstName": "Alice",
+      "LastName": "Williams",
+      "Department": "Engineering"
+    }
+  ],
+  "metadata": {
+    "execution_time_ms": 45,
+    "rows_returned": 4
+  }
+}
+
+###
+### 7. Interpret Results - Empty Results
+###
+POST {{v1Endpoint}}/interpret-results
+Content-Type: application/json
+
+{
+  "originalQuery": "Show all orders placed yesterday",
+  "sqlQuery": "SELECT * FROM dbo.Orders WHERE OrderDate = CAST(GETDATE() - 1 AS DATE)",
+  "results": [],
+  "metadata": {
+    "execution_time_ms": 38,
+    "rows_returned": 0
+  }
+}
+
+###
+### 8. Error Test - Invalid Schema
+###
+POST {{v1Endpoint}}/generate-sql
+Content-Type: application/json
+
+{
+  "naturalQuery": "Show all users"
+}
+
+###
+### 9. Error Test - Empty Query
+###
+POST {{v1Endpoint}}/generate-sql
+Content-Type: application/json
+
+{
+  "naturalQuery": "",
+  "schema": {
+    "databaseName": "TestDB",
+    "tables": []
+  }
+}
+
