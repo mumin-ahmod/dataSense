@@ -24,13 +24,13 @@ Database schema:
 Question: ""{naturalLanguageQuery}""
 
 IMPORTANT RULES:
-1. Generate ONLY SELECT queries (no INSERT, UPDATE, DELETE, DROP, TRUNCATE)
-2. Use proper SQL Server syntax
-3. Include all necessary JOINs based on foreign keys
-4. Use parameterized values or single quotes for string literals
-5. Use aggregation functions (COUNT, SUM, AVG, etc.) when appropriate
-6. Return ONLY the SQL query, no explanations or markdown formatting
-7. Use table names exactly as shown in the schema
+1. Generate ONLY SELECT queries (no INSERT, UPDATE, DELETE, DROP, TRUNCATE),
+2. Use proper SQL Server syntax,
+3. Include all necessary JOINs based on foreign keys of given schema,
+4. Use parameterized values or single quotes for string literals,
+5. Use aggregation functions (COUNT, SUM, AVG, etc.) when appropriate,
+6. Return ONLY the SQL query, no explanations or markdown formatting,
+7. Use table and column names exactly as shown in the schema,
 
 Return the SQL query:";
 
