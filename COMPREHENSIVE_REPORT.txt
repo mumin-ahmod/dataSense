@@ -1,0 +1,654 @@
+================================================================================
+                    DATASENSE API - COMPREHENSIVE REPORT
+                   Natural Language Query to SQL Execution System
+================================================================================
+
+Generated: 2025-01-27
+Version: 1.0
+
+================================================================================
+                              TABLE OF CONTENTS
+================================================================================
+
+1. Executive Summary
+2. Project Overview
+3. System Architecture
+4. Core Components and Services
+5. How the System Works
+6. Installation and Setup
+7. Configuration
+8. API Endpoints and Usage
+9. Security Features
+10. Supported Databases
+11. Testing and Examples
+12. Troubleshooting
+13. Future Enhancements
+
+================================================================================
+                          1. EXECUTIVE SUMMARY
+================================================================================
+
+DataSense API is an intelligent ASP.NET Core Web API that translates natural 
+language queries into SQL database operations using AI (Ollama LLM). The system 
+provides a seamless interface for querying databases without requiring users to 
+know SQL syntax or database schema details.
+
+Key Features:
+- Natural language to SQL translation
+- Automatic database schema detection and caching
+- AI-powered result analysis
+- Support for multiple database types (SQL Server, PostgreSQL, MySQL, Oracle)
+- Built-in SQL injection protection
+- RESTful API with Swagger documentation
+- Dual endpoint system (raw data vs. AI-analyzed results)
+
+================================================================================
+                          2. PROJECT OVERVIEW
+================================================================================
+
+DataSense API is built on .NET 8.0 and leverages the Ollama LLM framework to 
+provide intelligent database querying capabilities. The system acts as a 
+middleware layer between users and databases, translating natural language 
+questions into executable SQL queries.
+
+Project Structure:
+- Controllers/: API endpoints (QueryController.cs)
+- Services/: Core business logic (8 service interfaces and implementations)
+- Models/: Data transfer objects (QueryRequest.cs, QueryResponse.cs)
+- Configuration: appsettings.json, Program.cs
+
+================================================================================
+                         3. SYSTEM ARCHITECTURE
+================================================================================
+
+The system follows a layered architecture with dependency injection:
+
+Layer 1: API Controllers
+├── QueryController
+│   ├── /api/query/parse      (Raw data endpoint)
+│   ├── /api/query/analyze    (AI analysis endpoint)
+│   ├── /api/query/health     (Health check)
+│   ├── /api/query/schema/status (Schema status)
+│   └── /api/query/schema/refresh (Refresh schema)
+
+Layer 2: Service Layer (Core Business Logic)
+├── QueryParserService      - Orchestrates the query execution flow
+├── SqlGeneratorService      - Generates SQL using Ollama LLM
+├── SqlSafetyValidator       - Validates SQL for safety
+├── QueryExecutor            - Executes SQL against database
+├── ResultAnalyzerService    - Analyzes results using Ollama
+├── SchemaCacheService       - Manages database schema cache
+├── DatabaseSchemaReader     - Reads database schemas
+└── OllamaService            - Communicates with Ollama LLM
+
+Layer 3: Infrastructure
+├── Database Connection Pooling
+├── Configuration Management
+└── Logging Framework
+
+================================================================================
+                     4. CORE COMPONENTS AND SERVICES
+================================================================================
+
+4.1 QueryParserService
+   Purpose: Orchestrates the entire query processing pipeline
+   Responsibilities:
+   - Receives natural language query
+   - Retrieves cached database schema
+   - Generates SQL query via SqlGeneratorService
+   - Validates SQL safety via SqlSafetyValidator
+   - Executes query via QueryExecutor
+   - Returns QueryResponse with results
+   
+   Flow:
+   1. Get schema from cache
+   2. Generate SQL using natural language + schema
+   3. Sanitize and validate SQL
+   4. Execute SQL query
+   5. Return results
+
+4.2 SqlGeneratorService
+   Purpose: Converts natural language to SQL using Ollama LLM
+   Responsibilities:
+   - Sends prompt to Ollama with database schema
+   - Receives generated SQL query
+   - Cleans up response (removes markdown formatting)
+   
+   Prompt Structure:
+   - Database schema context
+   - Natural language question
+   - Rules: SELECT only, proper syntax, parameterized values
+   
+4.3 SqlSafetyValidator
+   Purpose: Protects against dangerous SQL operations
+   Responsibilities:
+   - Validates that queries are SELECT only
+   - Blocks dangerous keywords (DROP, DELETE, TRUNCATE, etc.)
+   - Sanitizes SQL (removes comments)
+   
+   Blocked Operations:
+   - DROP, DELETE, TRUNCATE, ALTER, CREATE
+   - INSERT, UPDATE, EXEC, EXECUTE
+   - sp_executesql, xp_cmdshell
+   
+4.4 QueryExecutor
+   Purpose: Executes SQL queries safely
+   Responsibilities:
+   - Opens database connection
+   - Executes SELECT queries
+   - Limits results to 1000 rows (configurable)
+   - Returns structured data (rows, columns, rowCount)
+   
+   Features:
+   - Command timeout: 30 seconds
+   - Row limit: 1000 rows (prevents memory issues)
+   - DBNull handling
+   - Error logging
+
+4.5 ResultAnalyzerService
+   Purpose: Provides AI-powered insights on query results
+   Responsibilities:
+   - Takes query results
+   - Sends to Ollama for analysis
+   - Returns natural language interpretation
+   
+   Use Case:
+   - Used by /api/query/analyze endpoint
+   - Provides context and insights beyond raw data
+
+4.6 SchemaCacheService
+   Purpose: Manages in-memory database schema cache
+   Responsibilities:
+   - Loads schema on startup
+   - Caches schema for fast access
+   - Provides schema refresh capability
+   
+   Cache Lifecycle:
+   - Loaded at application startup
+   - Cached in memory for performance
+   - Can be manually refreshed via API
+
+4.7 DatabaseSchemaReader
+   Purpose: Reads database schema from various databases
+   Responsibilities:
+   - Auto-detects database type
+   - Reads tables and columns
+   - Formats schema as text
+   
+   Supported Databases:
+   - SQL Server: Uses INFORMATION_SCHEMA.TABLES, INFORMATION_SCHEMA.COLUMNS
+   - PostgreSQL: Reads pg_tables and pg_attribute
+   - MySQL: Queries information_schema
+   - Oracle: Reads ALL_TAB_COLS
+
+4.8 OllamaService
+   Purpose: Communicates with local Ollama LLM
+   Responsibilities:
+   - Sends prompts to Ollama API
+   - Receives responses
+   - Handles errors gracefully
+   
+   Configuration:
+   - Base URL: http://localhost:11434
+   - Model: llama3.2:latest
+   - Uses JSON API
+
+================================================================================
+                        5. HOW THE SYSTEM WORKS
+================================================================================
+
+5.1 Application Startup Sequence:
+   1. Program.cs loads configuration
+   2. Services registered with dependency injection
+   3. CORS configured (allows all origins in dev)
+   4. SchemaCacheService.RefreshSchemaAsync() called
+   5. Database schema loaded and cached
+   6. API ready to accept requests
+
+5.2 Query Processing Flow (API Set 1 - /api/query/parse):
+   
+   User Request → QueryController.ParseQuery()
+   ↓
+   QueryParserService.ParseQueryAsync()
+   ↓
+   1. Get schema from SchemaCacheService (cached)
+   ↓
+   2. SqlGeneratorService.GenerateSqlAsync()
+      - Build prompt with schema + natural language
+      - Send to OllamaService
+      - Receive generated SQL
+      - Clean response
+   ↓
+   3. SqlSafetyValidator.SanitizeQuery()
+      - Remove comments
+      - Trim whitespace
+   ↓
+   4. SqlSafetyValidator.IsSafe()
+      - Check for SELECT keyword
+      - Block dangerous keywords
+   ↓
+   5. QueryExecutor.ExecuteQueryAsync()
+      - Open database connection
+      - Execute SQL
+      - Read results (max 1000 rows)
+      - Return structured data
+   ↓
+   QueryResponse returned to user
+   {
+     sqlQuery: "...",
+     results: { rows, rowCount, columns },
+     isValid: true,
+     errorMessage: null
+   }
+
+5.3 Query Processing Flow (API Set 2 - /api/query/analyze):
+   
+   [Same as API Set 1 up to QueryResponse]
+   ↓
+   If valid and results exist:
+   ↓
+   ResultAnalyzerService.AnalyzeResultsAsync()
+      - Serialize results to JSON
+      - Build analysis prompt
+      - Send to OllamaService
+      - Receive analysis text
+   ↓
+   Add analysis to QueryResponse
+   {
+     ...previous fields,
+     analysis: "Based on the data, Project Alpha had..."
+   }
+
+5.4 Schema Loading Process:
+   1. Get connection string from config
+   2. Detect database type
+   3. Connect to database
+   4. Query INFORMATION_SCHEMA tables
+   5. Build schema text
+   6. Cache in memory
+   
+   Schema Format Example:
+   Table: dbo.Projects
+     - Id: int (not nullable)
+     - Name: nvarchar (nullable)
+     - CreatedAt: datetime (nullable)
+
+================================================================================
+                      6. INSTALLATION AND SETUP
+================================================================================
+
+6.1 Prerequisites:
+   - .NET 8.0 SDK (https://dotnet.microsoft.com/download)
+   - Ollama installed locally
+   - llama3.2 model available in Ollama
+   - Target database accessible
+
+6.2 Installing Ollama:
+   macOS:    brew install ollama
+   Linux:    curl -fsSL https://ollama.com/install.sh | sh
+   Windows:  Download from https://ollama.com/download
+   
+6.3 Installing llama3.2:
+   Run: ollama pull llama3.2
+   
+6.4 Starting Ollama:
+   The service should start automatically, or run: ollama serve
+   
+6.5 Installing the Project:
+   1. Clone the repository
+   2. Restore packages:
+      dotnet restore
+      
+6.6 Configuration Setup:
+   1. Copy appsettings.json.template to appsettings.json
+   2. Edit appsettings.json with your database connection string
+   3. Save and close
+
+6.7 Running the Application:
+   1. Start Ollama service (if not already running)
+   2. Navigate to project directory
+   3. Run: dotnet run
+   4. API available at: http://localhost:5000
+   5. Swagger UI: http://localhost:5000/swagger
+
+================================================================================
+                          7. CONFIGURATION
+================================================================================
+
+7.1 appsettings.json Structure:
+{
+  "Logging": {
+    "LogLevel": {
+      "Default": "Information",
+      "Microsoft.AspNetCore": "Warning"
+    }
+  },
+  "AllowedHosts": "*",
+  "ConnectionStrings": {
+    "DefaultConnection": "YOUR_CONNECTION_STRING_HERE"
+  }
+}
+
+7.2 Connection String Examples:
+
+SQL Server:
+"Server=localhost;Database=MyDB;User ID=sa;Password=YourPassword;TrustServerCertificate=True;"
+
+SQL Server (Windows Auth):
+"Server=localhost;Database=MyDB;Integrated Security=True;TrustServerCertificate=True;"
+
+PostgreSQL:
+"Host=localhost;Database=MyDB;Username=user;Password=pass;Port=5432;"
+
+MySQL:
+"server=localhost;database=MyDB;uid=user;pwd=password;"
+
+Oracle:
+"Data Source=localhost:1521/XE;User Id=user;Password=pass;"
+
+7.3 Environment Variables:
+You can override connection string via environment variable:
+export DBCONNECTION="Server=localhost;Database=MyDB;..."
+dotnet run
+
+7.4 Security Notes:
+- appsettings.json should be in .gitignore
+- Never commit actual connection strings
+- Use environment variables in production
+- Use strong passwords for database credentials
+
+================================================================================
+                      8. API ENDPOINTS AND USAGE
+================================================================================
+
+8.1 API Set 1: Parse Query (Raw Data)
+   Endpoint: POST /api/query/parse
+   Purpose: Execute query and return raw data
+   Use Case: Programmatic data retrieval
+   
+   Request Body:
+   {
+     "naturalLanguageQuery": "Show total hours worked on Project Alpha last month"
+   }
+   
+   Response:
+   {
+     "sqlQuery": "SELECT p.Name, SUM(t.HoursLogged) AS TotalHours...",
+     "results": {
+       "rows": [{"Name": "Project Alpha", "TotalHours": 156.5}],
+       "rowCount": 1,
+       "columns": ["Name", "TotalHours"]
+     },
+     "analysis": null,
+     "isValid": true,
+     "errorMessage": null
+   }
+
+8.2 API Set 2: Analyze Query (Data + AI Analysis)
+   Endpoint: POST /api/query/analyze
+   Purpose: Execute query and get AI insights
+   Use Case: Business intelligence, reporting
+   
+   Request Body:
+   {
+     "naturalLanguageQuery": "Show total hours worked on Project Alpha last month"
+   }
+   
+   Response:
+   {
+     "sqlQuery": "...",
+     "results": {...},
+     "analysis": "Based on the data retrieved, Project Alpha had a total of 156.5 hours worked in the past month. This represents significant activity on the project...",
+     "isValid": true,
+     "errorMessage": null
+   }
+
+8.3 Health Check
+   Endpoint: GET /api/query/health
+   Purpose: Check API status
+   
+   Response:
+   {
+     "status": "healthy",
+     "timestamp": "2025-01-27T12:00:00Z"
+   }
+
+8.4 Schema Status
+   Endpoint: GET /api/query/schema/status
+   Purpose: Check if schema is loaded
+   
+   Response:
+   {
+     "schemaLoaded": true
+   }
+
+8.5 Refresh Schema
+   Endpoint: GET /api/query/schema/refresh
+   Purpose: Reload schema after database changes
+   
+   Response:
+   {
+     "message": "Schema refreshed successfully",
+     "timestamp": "2025-01-27T12:00:00Z"
+   }
+
+8.6 Example Requests (cURL):
+   
+   # Parse query
+   curl -X POST "http://localhost:5000/api/query/parse" \
+     -H "Content-Type: application/json" \
+     -d '{"naturalLanguageQuery": "Count all employees in Sales"}'
+   
+   # Analyze query
+   curl -X POST "http://localhost:5000/api/query/analyze" \
+     -H "Content-Type: application/json" \
+     -d '{"naturalLanguageQuery": "Show average salary by department"}'
+   
+   # Check health
+   curl http://localhost:5000/api/query/health
+   
+   # Check schema
+   curl http://localhost:5000/api/query/schema/status
+   
+   # Refresh schema
+   curl http://localhost:5000/api/query/schema/refresh
+
+8.7 Example Requests (using test-request.http):
+   The project includes test-request.http file with multiple examples.
+   Use this with REST Client extensions in VS Code or similar IDEs.
+
+================================================================================
+                         9. SECURITY FEATURES
+================================================================================
+
+9.1 SQL Injection Protection:
+   - Only SELECT queries allowed (no writes)
+   - Dangerous keywords blocked (DROP, DELETE, etc.)
+   - Query sanitization (removes comments)
+   - Whitelist approach for safety
+
+9.2 Query Validation:
+   - Must contain SELECT keyword
+   - No data modification operations
+   - No system procedure executions
+   - No command injections
+
+9.3 Row Limiting:
+   - Maximum 1000 rows per query
+   - Prevents memory exhaustion
+   - Timeout: 30 seconds
+
+9.4 Connection String Security:
+   - Environment variable support
+   - Sensitive data not in git
+   - Configurable timeouts
+
+9.5 Error Handling:
+   - User-friendly error messages
+   - No system details exposed
+   - Comprehensive logging
+
+================================================================================
+                          10. SUPPORTED DATABASES
+================================================================================
+
+10.1 SQL Server:
+   - Full schema reading from INFORMATION_SCHEMA
+   - Supports both Windows and SQL authentication
+   - Connection string pattern:
+     "Server=host;Database=db;User ID=user;Password=pass;TrustServerCertificate=True;"
+
+10.2 PostgreSQL:
+   - Schema reading from pg_catalog
+   - Connection string pattern:
+     "Host=host;Database=db;Username=user;Password=pass;"
+
+10.3 MySQL:
+   - Schema reading from information_schema
+   - Connection string pattern:
+     "server=host;database=db;uid=user;pwd=pass;"
+
+10.4 Oracle:
+   - Schema reading from ALL_TAB_COLS
+   - Connection string pattern:
+     "Data Source=host:port/SID;User Id=user;Password=pass;"
+
+================================================================================
+                      11. TESTING AND EXAMPLES
+================================================================================
+
+11.1 Using Swagger UI:
+   1. Start the application
+   2. Navigate to http://localhost:5000/swagger
+   3. Try the endpoints interactively
+
+11.2 Example Natural Language Queries:
+   
+   "Count all employees in the Sales department"
+   "Get the average salary for each department"
+   "Show all orders from last week"
+   "List all customers from New York"
+   "Display total revenue by month"
+   "Find products with quantity less than 100"
+   "Show employees hired this year"
+   "Get the top 10 best selling products"
+
+11.3 Testing Tips:
+   - Be specific about table and column names
+   - Use date ranges when needed
+   - Ask for aggregations (SUM, COUNT, AVG)
+   - Specify JOINs implicitly (e.g., "employees in Sales department")
+
+11.4 Common Query Patterns:
+   
+   Counting:
+   "Count [records] [where condition]"
+   
+   Aggregation:
+   "Get [SUM/AVG/MAX/MIN] of [field] [grouped by]"
+   
+   Filtering:
+   "Show all [records] where [condition]"
+   
+   Time-based:
+   "Show [records] from [time period]"
+   
+   Rankings:
+   "Show top/bottom N [records] ordered by [field]"
+
+================================================================================
+                         12. TROUBLESHOOTING
+================================================================================
+
+12.1 Schema Not Loading:
+   Symptom: "No database schema available" on startup
+   Solution:
+   - Check connection string in appsettings.json
+   - Verify database credentials
+   - Ensure database is accessible
+   - Check logs for detailed error messages
+
+12.2 Ollama Connection Failed:
+   Symptom: "Error querying Ollama" in responses
+   Solution:
+   - Verify Ollama is running: curl http://localhost:11434
+   - Check if llama3.2 is installed: ollama list
+   - Install model if missing: ollama pull llama3.2
+
+12.3 Invalid SQL Generated:
+   Symptom: Query execution errors
+   Solution:
+   - Be more specific in natural language query
+   - Ensure table and column names are correct
+   - Check generated SQL in response
+
+12.4 No Results Returned:
+   Symptom: Empty rows array
+   Possible Causes:
+   - Query conditions too restrictive
+   - Wrong table/column names
+   - No data matching criteria
+   Solution: Verify query logic and data availability
+
+12.5 Query Timeout:
+   Symptom: "Command timeout" error
+   Solution:
+   - Optimize database indexes
+   - Make query more specific
+   - Reduce data volume (add WHERE clauses)
+
+12.6 CORS Issues:
+   Symptom: "CORS policy" errors in browser
+   Solution:
+   - CORS is configured to allow all origins
+   - Check browser console for details
+   - Verify API endpoint URL
+
+================================================================================
+                      13. FUTURE ENHANCEMENTS
+================================================================================
+
+Potential Improvements:
+- Multi-database query support (UNION across databases)
+- Caching of frequent queries
+- Query history and analytics
+- Custom prompt templates
+- Support for more database types
+- Query optimization suggestions
+- Batch query processing
+- Authentication and authorization
+- Rate limiting
+- Query result export (CSV, Excel)
+- Scheduled query reports
+- Dashboard integration
+- Real-time query monitoring
+- Query performance metrics
+- Admin panel for configuration
+
+================================================================================
+                              CONCLUSION
+================================================================================
+
+DataSense API provides a powerful and intuitive interface for querying databases 
+using natural language. The system combines the capabilities of AI (via Ollama) 
+with traditional database operations to create a seamless user experience.
+
+Key Benefits:
+- No SQL knowledge required for end users
+- Automatic schema detection
+- Built-in security protections
+- AI-powered insights and analysis
+- Support for multiple database types
+- Easy to configure and deploy
+
+The system is production-ready with comprehensive error handling, logging, and 
+security features. It can be easily extended and customized to meet specific 
+business requirements.
+
+For support and updates, please refer to the project repository and 
+documentation.
+
+================================================================================
+                              END OF REPORT
+================================================================================
+
