@@ -40,7 +40,7 @@ Your task:
 4. Be concise but informative, do not use technical terms, keep it simple and easy to understand.
 5. Do not use database terms, keep it simple and easy to understand.
 
-Provide your analysis and answer in natural language:";
+Provide your response and answer in natural language:";
 
             _logger.LogInformation("Sending query results to Ollama for analysis");
 
