@@ -1,0 +1,32 @@
+### Test the DataSense API
+
+### Health Check
+GET http://localhost:5000/api/query/health
+
+### Parse Query - Example 1
+POST http://localhost:5000/api/query/parse
+Content-Type: application/json
+
+{
+  "naturalLanguageQuery": "Show total hours worked on Project Alpha last month",
+  "connectionString": ""
+}
+
+### Parse Query - Example 2
+POST http://localhost:5000/api/query/parse
+Content-Type: application/json
+
+{
+  "naturalLanguageQuery": "Count all employees in the Sales department",
+  "connectionString": ""
+}
+
+### Parse Query - Example 3 (with SQL Server connection)
+POST http://localhost:5000/api/query/parse
+Content-Type: application/json
+
+{
+  "naturalLanguageQuery": "Get the average salary for each department",
+  "connectionString": "Server=localhost;Database=MyDB;Integrated Security=True;"
+}
+
