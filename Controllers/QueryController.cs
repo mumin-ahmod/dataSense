@@ -31,7 +31,7 @@ public class QueryController : ControllerBase
         {
             var response = await _queryParserService.ParseQueryAsync(
                 request.NaturalLanguageQuery,
-                request.ConnectionString);
+                request.ConnectionName);
 
             return Ok(response);
         }

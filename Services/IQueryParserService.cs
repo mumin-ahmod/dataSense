@@ -4,6 +4,6 @@ namespace DataSenseAPI.Services;
 
 public interface IQueryParserService
 {
-    Task<QueryResponse> ParseQueryAsync(string naturalLanguageQuery, string? connectionString);
+    Task<QueryResponse> ParseQueryAsync(string naturalLanguageQuery, string? connectionName);
 }
 

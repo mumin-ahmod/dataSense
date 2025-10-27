@@ -58,7 +58,11 @@ artifacts/
 *.log
 *.cache
 
-# Application specific
+# Application specific (keep template, ignore actual)
 appsettings.Development.json
 appsettings.Production.json
+
+# Connection strings should be configured per environment
+# Keep appsettings.json.template as a template
+appsettings.local.json
 

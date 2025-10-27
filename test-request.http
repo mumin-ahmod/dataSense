@@ -3,13 +3,12 @@
 ### Health Check
 GET http://localhost:5000/api/query/health
 
-### Parse Query - Example 1
+### Parse Query - Example 1 (No database connection)
 POST http://localhost:5000/api/query/parse
 Content-Type: application/json
 
 {
-  "naturalLanguageQuery": "Show total hours worked on Project Alpha last month",
-  "connectionString": ""
+  "naturalLanguageQuery": "Show total hours worked on Project Alpha last month"
 }
 
 ### Parse Query - Example 2
@@ -17,16 +16,24 @@ POST http://localhost:5000/api/query/parse
 Content-Type: application/json
 
 {
-  "naturalLanguageQuery": "Count all employees in the Sales department",
-  "connectionString": ""
+  "naturalLanguageQuery": "Count all employees in the Sales department"
 }
 
-### Parse Query - Example 3 (with SQL Server connection)
+### Parse Query - Example 3 (using DefaultConnection from appsettings.json)
 POST http://localhost:5000/api/query/parse
 Content-Type: application/json
 
 {
   "naturalLanguageQuery": "Get the average salary for each department",
-  "connectionString": "Server=localhost;Database=MyDB;Integrated Security=True;"
+  "connectionName": "DefaultConnection"
+}
+
+### Parse Query - Example 4 (using PostgreSQL connection name)
+POST http://localhost:5000/api/query/parse
+Content-Type: application/json
+
+{
+  "naturalLanguageQuery": "Show all orders from last week",
+  "connectionName": "PostgreSQL"
 }
 
