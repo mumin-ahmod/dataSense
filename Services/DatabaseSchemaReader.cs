@@ -53,14 +53,48 @@ public class DatabaseSchemaReader : IDatabaseSchemaReader
     {
         try
         {
-            using var connection = new System.Data.SqlClient.SqlConnection(connectionString);
+            _logger.LogInformation($"Original connection string: {connectionString.Replace("Password=", "Password=***").Replace("User ID=", "User ID=***")}");
+            
+            var connectionStringBuilder = new Microsoft.Data.SqlClient.SqlConnectionStringBuilder(connectionString);
+            _logger.LogInformation($"Parsed - UserID: '{connectionStringBuilder.UserID}', Password set: {!string.IsNullOrEmpty(connectionStringBuilder.Password)}, Database: '{connectionStringBuilder.InitialCatalog}'");
+            
+            connectionStringBuilder.ConnectTimeout = 10;
+            connectionStringBuilder.IntegratedSecurity = false;
+            
+            // If UserID is empty, try to extract it from the original connection string
+            if (string.IsNullOrEmpty(connectionStringBuilder.UserID) || string.IsNullOrEmpty(connectionStringBuilder.Password))
+            {
+                _logger.LogWarning("Credentials missing. Attempting manual extraction...");
+                
+                // Try to manually parse if the builder didn't work
+                if (connectionString.Contains("User ID="))
+                {
+                    var parts = connectionString.Split(';');
+                    foreach (var part in parts)
+                    {
+                        if (part.Trim().StartsWith("User ID="))
+                            connectionStringBuilder.UserID = part.Split('=')[1].Trim();
+                        if (part.Trim().StartsWith("Password="))
+                            connectionStringBuilder.Password = part.Split('=')[1].Trim();
+                    }
+                }
+            }
+            
+            _logger.LogInformation($"Final - UserID: '{connectionStringBuilder.UserID}', Password set: {!string.IsNullOrEmpty(connectionStringBuilder.Password)}");
+            
+            if (string.IsNullOrEmpty(connectionStringBuilder.UserID))
+            {
+                throw new InvalidOperationException("User ID is required for SQL Server authentication");
+            }
+            
+            using var connection = new Microsoft.Data.SqlClient.SqlConnection(connectionStringBuilder.ConnectionString);
             await connection.OpenAsync();
             
             var schema = new System.Text.StringBuilder();
             var tables = new List<string>();
             
             // Get all tables
-            using var tableCommand = new System.Data.SqlClient.SqlCommand(
+            using var tableCommand = new Microsoft.Data.SqlClient.SqlCommand(
                 @"SELECT TABLE_SCHEMA, TABLE_NAME 
                   FROM INFORMATION_SCHEMA.TABLES 
                   WHERE TABLE_TYPE = 'BASE TABLE'
@@ -83,7 +117,7 @@ public class DatabaseSchemaReader : IDatabaseSchemaReader
                 var parts = table.Split('.');
                 schema.AppendLine($"\nTable: {table}");
                 
-                using var columnCommand = new System.Data.SqlClient.SqlCommand(
+                using var columnCommand = new Microsoft.Data.SqlClient.SqlCommand(
                     @"SELECT COLUMN_NAME, DATA_TYPE, IS_NULLABLE, CHARACTER_MAXIMUM_LENGTH
                       FROM INFORMATION_SCHEMA.COLUMNS
                       WHERE TABLE_SCHEMA = @schema AND TABLE_NAME = @table

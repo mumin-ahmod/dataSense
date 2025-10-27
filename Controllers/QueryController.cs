@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.DependencyInjection;
 using DataSenseAPI.Models;
 using DataSenseAPI.Services;
 
@@ -30,8 +31,7 @@ public class QueryController : ControllerBase
         try
         {
             var response = await _queryParserService.ParseQueryAsync(
-                request.NaturalLanguageQuery,
-                request.ConnectionName);
+                request.NaturalLanguageQuery);
 
             return Ok(response);
         }
@@ -46,6 +46,37 @@ public class QueryController : ControllerBase
     public IActionResult Health()
     {
         return Ok(new { status = "healthy", timestamp = DateTime.UtcNow });
+    }
+
+    [HttpGet("schema/refresh")]
+    public async Task<IActionResult> RefreshSchema()
+    {
+        try
+        {
+            var schemaCache = HttpContext.RequestServices.GetRequiredService<ISchemaCacheService>();
+            await schemaCache.RefreshSchemaAsync();
+            return Ok(new { message = "Schema refreshed successfully", timestamp = DateTime.UtcNow });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error refreshing schema");
+            return StatusCode(500, new { error = "An error occurred while refreshing schema", details = ex.Message });
+        }
+    }
+
+    [HttpGet("schema/status")]
+    public IActionResult GetSchemaStatus()
+    {
+        try
+        {
+            var schemaCache = HttpContext.RequestServices.GetRequiredService<ISchemaCacheService>();
+            return Ok(new { schemaLoaded = schemaCache.IsSchemaLoaded });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting schema status");
+            return StatusCode(500, new { error = "An error occurred", details = ex.Message });
+        }
     }
 }
 

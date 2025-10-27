@@ -3,7 +3,13 @@
 ### Health Check
 GET http://localhost:5000/api/query/health
 
-### Parse Query - Example 1 (No database connection)
+### Schema Status
+GET http://localhost:5000/api/query/schema/status
+
+### Refresh Schema (to reload database schema from appsettings.json)
+GET http://localhost:5000/api/query/schema/refresh
+
+### Parse Query - Example 1
 POST http://localhost:5000/api/query/parse
 Content-Type: application/json
 
@@ -19,21 +25,19 @@ Content-Type: application/json
   "naturalLanguageQuery": "Count all employees in the Sales department"
 }
 
-### Parse Query - Example 3 (using DefaultConnection from appsettings.json)
+### Parse Query - Example 3
 POST http://localhost:5000/api/query/parse
 Content-Type: application/json
 
 {
-  "naturalLanguageQuery": "Get the average salary for each department",
-  "connectionName": "DefaultConnection"
+  "naturalLanguageQuery": "Get the average salary for each department"
 }
 
-### Parse Query - Example 4 (using PostgreSQL connection name)
+### Parse Query - Example 4
 POST http://localhost:5000/api/query/parse
 Content-Type: application/json
 
 {
-  "naturalLanguageQuery": "Show all orders from last week",
-  "connectionName": "PostgreSQL"
+  "naturalLanguageQuery": "Show all orders from last week"
 }
 

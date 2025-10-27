@@ -51,14 +51,12 @@ An ASP.NET Core Web API that parses natural language queries into database actio
 Request body:
 ```json
 {
-  "naturalLanguageQuery": "Show total hours worked on Project Alpha last month",
-  "connectionName": "DefaultConnection"
+  "naturalLanguageQuery": "Show total hours worked on Project Alpha last month"
 }
 ```
 
 Parameters:
 - `naturalLanguageQuery` (required): The natural language query to parse
-- `connectionName` (optional): Name of the connection string from `appsettings.json`
 
 Response:
 ```json
@@ -79,6 +77,30 @@ Response:
 
 Returns the health status of the API.
 
+### Schema Status
+
+**GET** `/api/query/schema/status`
+
+Returns whether the database schema has been loaded:
+```json
+{
+  "schemaLoaded": true
+}
+```
+
+### Refresh Schema
+
+**GET** `/api/query/schema/refresh`
+
+Manually reloads the database schema from the configured connection string. Use this when your database structure changes.
+
+```json
+{
+  "message": "Schema refreshed successfully",
+  "timestamp": "2025-10-27T12:00:00Z"
+}
+```
+
 ## Testing
 
 You can test the API using Swagger UI when running in development mode:
@@ -89,31 +111,37 @@ http://localhost:5000/swagger
 Or use curl:
 
 ```bash
-# Without database connection
+# Parse a query
 curl -X POST "http://localhost:5000/api/query/parse" \
   -H "Content-Type: application/json" \
   -d '{"naturalLanguageQuery": "Show total hours worked on Project Alpha last month"}'
 
-# With database connection
-curl -X POST "http://localhost:5000/api/query/parse" \
-  -H "Content-Type: application/json" \
-  -d '{"naturalLanguageQuery": "Get the average salary for each department", "connectionName": "DefaultConnection"}'
+# Check schema status
+curl http://localhost:5000/api/query/schema/status
+
+# Refresh schema
+curl http://localhost:5000/api/query/schema/refresh
 ```
 
 ## Database Connection Configuration
 
-Connection strings are stored in `appsettings.json` with names for easy reference:
+### Automatic Schema Loading
+
+The API automatically reads and caches your database schema on startup. Simply configure your connection string in `appsettings.json`:
 
 ```json
 {
   "ConnectionStrings": {
-    "DefaultConnection": "Server=localhost;Database=DataSenseDB;Integrated Security=True;TrustServerCertificate=True;",
-    "PostgreSQL": "Host=localhost;Database=mydb;Username=postgres;Password=password",
-    "MySQL": "server=localhost;database=mydb;uid=root;pwd=password",
-    "Oracle": "Data Source=localhost:1521/XE;User Id=system;Password=password"
+    "DefaultConnection": "Server=localhost;Database=DataSenseDB;Integrated Security=True;TrustServerCertificate=True;"
   }
 }
 ```
+
+**How it works:**
+1. The API reads the schema from your configured database on startup
+2. Schema is cached in memory for fast query parsing
+3. No need to pass connection strings in API requests
+4. Users only send natural language queries
 
 ### Supported Database Types
 
@@ -124,14 +152,12 @@ The API can automatically detect the database type from the connection string:
 - **MySQL**: `server=...;database=...;uid=...;pwd=...`
 - **Oracle**: `Data Source=...;User Id=...;Password=...`
 
-### Using Connection Names
+### Schema Cache Features
 
-Instead of passing connection strings directly in API requests, you:
-1. Add connection strings to `appsettings.json` under `ConnectionStrings` section
-2. Reference them by name in your API requests using the `connectionName` field
-3. The API automatically looks up the connection string from configuration
-
-If no `connectionName` is provided, the parser will still work but without schema information.
+- **Automatic loading**: Schema is loaded when the API starts
+- **In-memory caching**: Fast responses without re-querying the database
+- **Manual refresh**: Use `/api/query/schema/refresh` endpoint to reload schema when database structure changes
+- **Status check**: Use `/api/query/schema/status` to check if schema is loaded
 
 ## Configuration
 
@@ -142,27 +168,39 @@ If no `connectionName` is provided, the parser will still work but without schem
    cp appsettings.json.template appsettings.json
    ```
 
-2. Edit `appsettings.json` to add your database connection strings:
+2. Edit `appsettings.json` to configure your database connection string:
 
 ```json
 {
   "ConnectionStrings": {
-    "MyProject": "Server=my-server;Database=my-project;User Id=user;Password=pass;",
-    "Production": "Host=prod-db;Database=prod;Username=admin;Password=secret;"
+    "DefaultConnection": "Server=my-server;Database=my-project;User Id=user;Password=pass;"
   }
 }
 ```
 
-Then use them in your requests:
+3. Run the application:
+   ```bash
+   dotnet run
+   ```
 
-```json
-{
-  "naturalLanguageQuery": "Show all active users",
-  "connectionName": "MyProject"
-}
+The API will automatically connect to your database and cache the schema.
+
+### Environment Variables
+
+You can also set the connection string via environment variable:
+
+```bash
+export DBCONNECTION="Server=localhost;Database=MyDB;Integrated Security=True;"
+dotnet run
 ```
 
 ### Security Note
 
 ⚠️ **Important**: The actual `appsettings.json` file is in `.gitignore` to prevent committing sensitive connection strings. Always keep your actual connection strings secure and never commit them to version control.
+
+### Schema Management
+
+- **Auto-load on startup**: Schema is automatically loaded when the API starts
+- **Manual refresh**: Call `GET /api/query/schema/refresh` to reload after schema changes
+- **Status check**: Call `GET /api/query/schema/status` to verify schema is loaded
 

@@ -6,47 +6,25 @@ namespace DataSenseAPI.Services;
 public class QueryParserService : IQueryParserService
 {
     private readonly IOllamaService _ollamaService;
-    private readonly IDatabaseSchemaReader _schemaReader;
+    private readonly ISchemaCacheService _schemaCache;
     private readonly ILogger<QueryParserService> _logger;
-    private readonly IConfiguration _configuration;
 
     public QueryParserService(
         IOllamaService ollamaService,
-        IDatabaseSchemaReader schemaReader,
-        ILogger<QueryParserService> logger,
-        IConfiguration configuration)
+        ISchemaCacheService schemaCache,
+        ILogger<QueryParserService> logger)
     {
         _ollamaService = ollamaService;
-        _schemaReader = schemaReader;
+        _schemaCache = schemaCache;
         _logger = logger;
-        _configuration = configuration;
     }
 
-    public async Task<QueryResponse> ParseQueryAsync(string naturalLanguageQuery, string? connectionName)
+    public async Task<QueryResponse> ParseQueryAsync(string naturalLanguageQuery)
     {
         try
         {
-            string? connectionString = null;
-            
-            // Look up connection string by name if provided
-            if (!string.IsNullOrWhiteSpace(connectionName))
-            {
-                connectionString = _configuration.GetConnectionString(connectionName);
-                
-                if (string.IsNullOrWhiteSpace(connectionString))
-                {
-                    _logger.LogWarning("Connection string '{ConnectionName}' not found in configuration", connectionName);
-                }
-                else
-                {
-                    _logger.LogInformation("Using connection string: {ConnectionName}", connectionName);
-                }
-            }
-            
-            // Get database schema
-            var schema = string.IsNullOrWhiteSpace(connectionString)
-                ? "No database schema available"
-                : await _schemaReader.GetSchemaAsync(connectionString);
+            // Get cached database schema
+            var schema = _schemaCache.GetSchema();
 
             // Create the prompt for Ollama
             var prompt = $@"You are a database query interpreter.

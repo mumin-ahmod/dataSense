@@ -7,10 +7,7 @@
   },
   "AllowedHosts": "*",
   "ConnectionStrings": {
-    "DefaultConnection": "Server=localhost;Database=DataSenseDB;Integrated Security=True;TrustServerCertificate=True;",
-    "PostgreSQL": "Host=localhost;Database=mydb;Username=postgres;Password=password",
-    "MySQL": "server=localhost;database=mydb;uid=root;pwd=password",
-    "Oracle": "Data Source=localhost:1521/XE;User Id=system;Password=password"
+    "DefaultConnection": "Server=localhost;Database=DataSenseDB;User ID=youruser;Password=yourpassword;TrustServerCertificate=True;"
   }
 }
 

@@ -8,10 +8,10 @@ builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
-// Add HttpClient for Ollama
+// Register services
+builder.Services.AddSingleton<ISchemaCacheService, SchemaCacheService>();
 builder.Services.AddHttpClient<OllamaService>();
 
-// Register services
 builder.Services.AddScoped<IOllamaService, OllamaService>();
 builder.Services.AddScoped<IDatabaseSchemaReader, DatabaseSchemaReader>();
 builder.Services.AddScoped<IQueryParserService, QueryParserService>();
@@ -28,6 +28,19 @@ builder.Services.AddCors(options =>
 });
 
 var app = builder.Build();
+
+// Initialize schema cache on startup
+try
+{
+    var schemaCache = app.Services.GetRequiredService<ISchemaCacheService>();
+    await schemaCache.RefreshSchemaAsync();
+    Console.WriteLine("✓ Database schema loaded successfully");
+}
+catch (Exception ex)
+{
+    Console.WriteLine($"⚠ Warning: Could not load database schema: {ex.Message}");
+    Console.WriteLine("   The API will work, but without schema information.");
+}
 
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
