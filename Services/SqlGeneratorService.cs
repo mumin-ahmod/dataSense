@@ -31,6 +31,7 @@ IMPORTANT RULES:
 5. Use aggregation functions (COUNT, SUM, AVG, etc.) when appropriate,
 6. Return ONLY the SQL query, no explanations or markdown formatting,
 7. Use table and column names exactly as shown in the schema,
+8. check sql query for any syntax errors against the schema and fix them,
 
 Return the SQL query:";
 
