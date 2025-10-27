@@ -24,6 +24,16 @@ public class BackendSqlGeneratorService : IBackendSqlGeneratorService
         // Convert schema to text format for LLM
         var schemaText = FormatSchemaForLLM(schema);
 
+        // Debug: Print schema and query to console
+        Console.WriteLine("\n=== DEBUG: Generate SQL Called ===");
+        Console.WriteLine($"Natural Query: \"{naturalQuery}\"");
+        Console.WriteLine($"Database: {schema.DatabaseName}");
+        Console.WriteLine($"Number of Tables: {schema.Tables.Count}");
+        Console.WriteLine($"DB Type: {dbType}");
+        Console.WriteLine("\nSchema Details:");
+        Console.WriteLine(schemaText);
+        Console.WriteLine("=== END DEBUG ===\n");
+
         var prompt = $@"You are a SQL query generator for {dbType.ToUpperInvariant()}.
 Given a database schema and a natural language question, generate a valid, safe SQL SELECT query.
 

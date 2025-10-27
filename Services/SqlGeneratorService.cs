@@ -29,7 +29,9 @@ IMPORTANT RULES:
 3. Use aggregation functions (COUNT, SUM, AVG, etc.) when appropriate,
 4. Return ONLY the SQL query, no explanations or markdown formatting,
 5. Use table and column names exactly as shown in the schema,
-6. check sql query again after generation for any syntax errors for the given schema and fix them,
+6. Do not use unnessecary JOINs, only use joins that are necessary for the given schema,
+7. remember that there are no other tables in the database, only the ones in the schema,
+8. check sql query again after generation for any syntax errors for the given schema and fix them,
 
 Return the SQL query:";
 
