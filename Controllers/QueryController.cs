@@ -10,13 +10,16 @@ namespace DataSenseAPI.Controllers;
 public class QueryController : ControllerBase
 {
     private readonly IQueryParserService _queryParserService;
+    private readonly IResultAnalyzerService _resultAnalyzer;
     private readonly ILogger<QueryController> _logger;
 
     public QueryController(
         IQueryParserService queryParserService,
+        IResultAnalyzerService resultAnalyzer,
         ILogger<QueryController> logger)
     {
         _queryParserService = queryParserService;
+        _resultAnalyzer = resultAnalyzer;
         _logger = logger;
     }
 
@@ -30,6 +33,7 @@ public class QueryController : ControllerBase
 
         try
         {
+            // API Set 1: Generate SQL, execute, and return data
             var response = await _queryParserService.ParseQueryAsync(
                 request.NaturalLanguageQuery);
 
@@ -39,6 +43,39 @@ public class QueryController : ControllerBase
         {
             _logger.LogError(ex, "Error parsing query");
             return StatusCode(500, new { error = "An error occurred while parsing the query", details = ex.Message });
+        }
+    }
+
+    [HttpPost("analyze")]
+    public async Task<ActionResult<QueryResponse>> AnalyzeQuery([FromBody] QueryRequest request)
+    {
+        if (string.IsNullOrWhiteSpace(request.NaturalLanguageQuery))
+        {
+            return BadRequest(new { error = "NaturalLanguageQuery is required" });
+        }
+
+        try
+        {
+            // API Set 2: Generate SQL, execute, then send to Ollama for analysis
+            var response = await _queryParserService.ParseQueryAsync(
+                request.NaturalLanguageQuery);
+
+            // If query was successful, send results to Ollama for analysis
+            if (response.IsValid && response.Results != null)
+            {
+                var analysis = await _resultAnalyzer.AnalyzeResultsAsync(
+                    request.NaturalLanguageQuery,
+                    response.Results);
+                
+                response.Analysis = analysis;
+            }
+
+            return Ok(response);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error analyzing query");
+            return StatusCode(500, new { error = "An error occurred while analyzing the query", details = ex.Message });
         }
     }
 

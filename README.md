@@ -44,9 +44,11 @@ An ASP.NET Core Web API that parses natural language queries into database actio
 
 ## API Endpoints
 
-### Parse Query
+### API Set 1: Parse Query (Returns Raw Data)
 
 **POST** `/api/query/parse`
+
+Generates SQL, executes it, and returns the raw data results.
 
 Request body:
 ```json
@@ -55,19 +57,51 @@ Request body:
 }
 ```
 
-Parameters:
-- `naturalLanguageQuery` (required): The natural language query to parse
+Response:
+```json
+{
+  "sqlQuery": "SELECT p.Name, SUM(t.HoursLogged) AS TotalHours FROM Projects p JOIN Tasks t ON t.ProjectId = p.Id WHERE p.Name = 'Project Alpha' AND t.CreatedAt >= DATEADD(month, -1, GETDATE()) GROUP BY p.Name",
+  "results": {
+    "rows": [
+      {
+        "Name": "Project Alpha",
+        "TotalHours": 156.5
+      }
+    ],
+    "rowCount": 1,
+    "columns": ["Name", "TotalHours"]
+  },
+  "analysis": null,
+  "isValid": true,
+  "errorMessage": null
+}
+```
+
+### API Set 2: Analyze Query (Returns Data + AI Analysis)
+
+**POST** `/api/query/analyze`
+
+Generates SQL, executes it, then sends results to Ollama for intelligent analysis and interpretation.
+
+Request body:
+```json
+{
+  "naturalLanguageQuery": "Show total hours worked on Project Alpha last month"
+}
+```
 
 Response:
 ```json
 {
-  "action": "SUM(HoursLogged)",
-  "table": "Tasks",
-  "conditions": [
-    "Project.Name = 'Project Alpha'",
-    "Date range = last month"
-  ],
-  "rawJson": "{...}"
+  "sqlQuery": "SELECT p.Name, SUM(t.HoursLogged) AS TotalHours FROM Projects p JOIN Tasks t ON t.ProjectId = p.Id WHERE p.Name = 'Project Alpha' AND t.CreatedAt >= DATEADD(month, -1, GETDATE()) GROUP BY p.Name",
+  "results": {
+    "rows": [{"Name": "Project Alpha", "TotalHours": 156.5}],
+    "rowCount": 1,
+    "columns": ["Name", "TotalHours"]
+  },
+  "analysis": "Based on the data retrieved, Project Alpha had a total of 156.5 hours worked in the past month. This represents significant activity on the project. The breakdown shows that work was consistently logged across the reporting period.",
+  "isValid": true,
+  "errorMessage": null
 }
 ```
 
@@ -111,8 +145,13 @@ http://localhost:5000/swagger
 Or use curl:
 
 ```bash
-# Parse a query
+# API Set 1: Get raw data results
 curl -X POST "http://localhost:5000/api/query/parse" \
+  -H "Content-Type: application/json" \
+  -d '{"naturalLanguageQuery": "Show total hours worked on Project Alpha last month"}'
+
+# API Set 2: Get data results with AI analysis
+curl -X POST "http://localhost:5000/api/query/analyze" \
   -H "Content-Type: application/json" \
   -d '{"naturalLanguageQuery": "Show total hours worked on Project Alpha last month"}'
 
@@ -122,6 +161,18 @@ curl http://localhost:5000/api/query/schema/status
 # Refresh schema
 curl http://localhost:5000/api/query/schema/refresh
 ```
+
+## Two API Sets Explained
+
+### API Set 1 (`/api/query/parse`)
+- **Purpose**: Get raw database results
+- **Use Case**: When you need the actual data to process programmatically
+- **Flow**: Query → SQL → Validate → Execute → Return Data
+
+### API Set 2 (`/api/query/analyze`)
+- **Purpose**: Get analyzed and interpreted results
+- **Use Case**: When you need an AI-powered explanation of the data
+- **Flow**: Query → SQL → Validate → Execute → Analyze with Ollama → Return Data + Analysis
 
 ## Database Connection Configuration
 

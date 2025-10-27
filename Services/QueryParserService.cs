@@ -5,16 +5,22 @@ namespace DataSenseAPI.Services;
 
 public class QueryParserService : IQueryParserService
 {
-    private readonly IOllamaService _ollamaService;
+    private readonly ISqlGeneratorService _sqlGenerator;
+    private readonly ISqlSafetyValidator _safetyValidator;
+    private readonly IQueryExecutor _queryExecutor;
     private readonly ISchemaCacheService _schemaCache;
     private readonly ILogger<QueryParserService> _logger;
 
     public QueryParserService(
-        IOllamaService ollamaService,
+        ISqlGeneratorService sqlGenerator,
+        ISqlSafetyValidator safetyValidator,
+        IQueryExecutor queryExecutor,
         ISchemaCacheService schemaCache,
         ILogger<QueryParserService> logger)
     {
-        _ollamaService = ollamaService;
+        _sqlGenerator = sqlGenerator;
+        _safetyValidator = safetyValidator;
+        _queryExecutor = queryExecutor;
         _schemaCache = schemaCache;
         _logger = logger;
     }
@@ -23,102 +29,53 @@ public class QueryParserService : IQueryParserService
     {
         try
         {
+            _logger.LogInformation($"Processing query: {naturalLanguageQuery}");
+
             // Get cached database schema
             var schema = _schemaCache.GetSchema();
 
-            // Create the prompt for Ollama
-            var prompt = $@"You are a database query interpreter.
-Given a natural-language question and database schema, identify:
-- Action (e.g., SUM(HoursLogged), COUNT(*))
-- Table (main table)
-- Conditions (filters)
+            // Generate SQL query
+            var sqlQuery = await _sqlGenerator.GenerateSqlAsync(naturalLanguageQuery, schema);
+            _logger.LogInformation($"Generated SQL: {sqlQuery}");
 
-Return only valid JSON, no explanation.
-
-Schema:
-{schema}
-
-Question:
-{naturalLanguageQuery}";
-
-            // Query Ollama
-            var response = await _ollamaService.QueryLLMAsync(prompt);
-
-            // Parse the response
-            var parsedResponse = ParseLLMResponse(response);
-
-            return parsedResponse;
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error parsing query");
-            return new QueryResponse
+            // Validate SQL safety
+            var sanitizedQuery = _safetyValidator.SanitizeQuery(sqlQuery);
+            
+            if (!_safetyValidator.IsSafe(sanitizedQuery))
             {
-                Action = "ERROR",
-                Table = "Unknown",
-                Conditions = new List<string> { $"Error: {ex.Message}" }
-            };
-        }
-    }
-
-    private QueryResponse ParseLLMResponse(string response)
-    {
-        try
-        {
-            // Try to parse JSON response
-            var jsonDocument = JsonDocument.Parse(response);
-            var root = jsonDocument.RootElement;
-
-            var queryResponse = new QueryResponse();
-
-            if (root.TryGetProperty("Action", out var action))
-            {
-                queryResponse.Action = action.GetString() ?? string.Empty;
-            }
-
-            if (root.TryGetProperty("Table", out var table))
-            {
-                queryResponse.Table = table.GetString() ?? string.Empty;
-            }
-
-            if (root.TryGetProperty("Conditions", out var conditions))
-            {
-                if (conditions.ValueKind == JsonValueKind.Array)
+                _logger.LogWarning("Generated SQL query is not safe");
+                return new QueryResponse
                 {
-                    foreach (var condition in conditions.EnumerateArray())
-                    {
-                        queryResponse.Conditions.Add(condition.GetString() ?? string.Empty);
-                    }
-                }
+                    SqlQuery = sqlQuery,
+                    IsValid = false,
+                    ErrorMessage = "Generated SQL query contains dangerous operations or is not a SELECT statement"
+                };
             }
 
-            queryResponse.RawJson = response;
+            // Execute the query
+            var results = await _queryExecutor.ExecuteQueryAsync(sanitizedQuery);
+            
+            _logger.LogInformation("Query executed successfully");
 
-            return queryResponse;
+            return new QueryResponse
+            {
+                SqlQuery = sanitizedQuery,
+                Results = results,
+                IsValid = true,
+                ParsedStructure = $"Query for: {naturalLanguageQuery}"
+            };
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, "Failed to parse LLM response as JSON, returning raw response");
-            
-            // Fallback: try to extract JSON from the response if it contains JSON
-            var jsonStart = response.IndexOf('{');
-            var jsonEnd = response.LastIndexOf('}');
-            
-            if (jsonStart >= 0 && jsonEnd > jsonStart)
-            {
-                var jsonContent = response.Substring(jsonStart, jsonEnd - jsonStart + 1);
-                return ParseLLMResponse(jsonContent);
-            }
-
-            // Return raw response as fallback
+            _logger.LogError(ex, "Error parsing and executing query");
             return new QueryResponse
             {
-                Action = "PARSE_ERROR",
-                Table = "Unknown",
-                Conditions = new List<string>(),
-                RawJson = response
+                SqlQuery = string.Empty,
+                IsValid = false,
+                ErrorMessage = ex.Message
             };
         }
     }
+
 }
 

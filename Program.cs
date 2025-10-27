@@ -14,6 +14,10 @@ builder.Services.AddHttpClient<OllamaService>();
 
 builder.Services.AddScoped<IOllamaService, OllamaService>();
 builder.Services.AddScoped<IDatabaseSchemaReader, DatabaseSchemaReader>();
+builder.Services.AddScoped<ISqlGeneratorService, SqlGeneratorService>();
+builder.Services.AddScoped<ISqlSafetyValidator, SqlSafetyValidator>();
+builder.Services.AddScoped<IQueryExecutor, QueryExecutor>();
+builder.Services.AddScoped<IResultAnalyzerService, ResultAnalyzerService>();
 builder.Services.AddScoped<IQueryParserService, QueryParserService>();
 
 // Configure CORS

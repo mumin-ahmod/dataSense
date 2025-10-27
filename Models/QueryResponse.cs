@@ -2,9 +2,11 @@ namespace DataSenseAPI.Models;
 
 public class QueryResponse
 {
-    public string Action { get; set; } = string.Empty;
-    public string Table { get; set; } = string.Empty;
-    public List<string> Conditions { get; set; } = new();
-    public string? RawJson { get; set; }
+    public string SqlQuery { get; set; } = string.Empty;
+    public object? Results { get; set; }
+    public string? Analysis { get; set; } // For API Set 2 - Ollama's interpretation
+    public bool IsValid { get; set; }
+    public string? ErrorMessage { get; set; }
+    public string? ParsedStructure { get; set; } // Legacy field for debugging
 }
 
