@@ -24,20 +24,21 @@ public class ResultAnalyzerService : IResultAnalyzerService
             { 
                 WriteIndented = false 
             });
-
-            var prompt = $@"You are a data analyst assistant. You've been given a database query result and the original question.
+//need to change this prompt like: instead of data analyst, take input like: personal assistant, data analyst, shopping expert etc.
+//change the prompt bellow to be role specific.
+            var prompt = $@"You are an assistant. You've been given a data and the original question.
 
 Original Question: ""{originalQuery}""
 
-Query Results (JSON):
+Relevant Data from the database (JSON):
 {resultsJson}
 
 Your task:
-1. Analyze the data
-2. Answer the original question based on the actual data provided
-3. Provide insights, summaries, or interpretations as appropriate
-4. If there are no results, explain why and what it means
-5. Be concise but informative
+1. Answer the original question based on the actual data provided
+2. Provide insights, summaries, or interpretations as appropriate
+3. If there are no results, explain why and what it means
+4. Be concise but informative, do not use technical terms, keep it simple and easy to understand.
+5. Do not use database terms, keep it simple and easy to understand.
 
 Provide your analysis and answer in natural language:";
 
