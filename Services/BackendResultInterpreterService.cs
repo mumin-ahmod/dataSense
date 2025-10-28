@@ -26,27 +26,27 @@ public class BackendResultInterpreterService : IBackendResultInterpreterService
                 WriteIndented = false 
             });
 
-            var prompt = $@"You are a data analyst assistant. You've been given a database query result and the original question.
+            var prompt = $@"You are an assistant. You've been given data from the database and the original question.
 
 Original Question: ""{request.OriginalQuery}""
 
-SQL Query Executed:
-```sql
-{request.SqlQuery}
-```
-
-Query Results:
+Relevant data from database:
 {resultsJson}
 
 Your task:
-1. Analyze the data thoroughly
-2. Answer the original question based on the actual data provided
-3. Provide insights, summaries, or interpretations as appropriate
-4. If there are no results or empty data, explain why and what it means
-5. Be concise but informative (aim for 2-4 sentences)
-6. If the results contain multiple rows, provide a meaningful summary or highlight key findings
+1. Analyze the data thoroughly. Provide insights, summaries, or interpretations as appropriate.
+2. Answer the original question based on the actual data provided.
+3. If there are no results or the data is empty, give a relevant and close answer to the original question.
+4. Be concise but informative (aim for 2-4 sentences).
+5. If the results contain multiple rows, provide a meaningful summary or highlight key findings.
 
-Provide your analysis and answer in natural language:";
+Provide your analysis and answer in natural language, and return ONLY the following JSON structure in your reply:
+{{
+    ""analysis"": ""..."",
+    ""answer"": ""..."",
+    ""summary"": ""...""
+}}";
+
 
             _logger.LogInformation("Interpreting query results for backend");
 

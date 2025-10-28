@@ -9,13 +9,16 @@ namespace DataSenseAPI.Services;
 public class BackendSqlGeneratorService : IBackendSqlGeneratorService
 {
     private readonly IOllamaService _ollamaService;
+    private readonly ISqlSafetyValidator _safetyValidator;
     private readonly ILogger<BackendSqlGeneratorService> _logger;
 
     public BackendSqlGeneratorService(
         IOllamaService ollamaService,
+        ISqlSafetyValidator safetyValidator,
         ILogger<BackendSqlGeneratorService> logger)
     {
         _ollamaService = ollamaService;
+        _safetyValidator = safetyValidator;
         _logger = logger;
     }
 
@@ -75,7 +78,35 @@ Return the SQL query:";
             }
             
             _logger.LogInformation($"Generated SQL for {dbType}: {sqlQuery}");
-            return sqlQuery;
+            
+            // Step 2: Sanitize and validate safety before returning
+            var sanitizedQuery = _safetyValidator.SanitizeQuery(sqlQuery);
+            var isSafe = _safetyValidator.IsSafe(sanitizedQuery);
+            
+            if (!isSafe)
+            {
+                _logger.LogWarning($"Generated SQL failed safety validation. Attempting to fix: {sqlQuery}");
+                
+                // Step 3: Attempt to fix the query using LLM
+                var fixedQuery = await VerifyAndFixQueryAsync(naturalQuery, schema, sanitizedQuery, dbType, schemaText);
+                
+                // Validate the fixed query
+                var fixedSanitized = _safetyValidator.SanitizeQuery(fixedQuery);
+                var fixedIsSafe = _safetyValidator.IsSafe(fixedSanitized);
+                
+                if (fixedIsSafe)
+                {
+                    _logger.LogInformation("Successfully fixed SQL query after safety validation");
+                    return fixedSanitized;
+                }
+                else
+                {
+                    _logger.LogWarning("Fixed query still failed safety validation");
+                    throw new InvalidOperationException("Generated SQL query contains dangerous operations and could not be fixed");
+                }
+            }
+            
+            return sanitizedQuery;
         }
         catch (Exception ex)
         {
@@ -117,6 +148,60 @@ Return the SQL query:";
         }
         
         return sb.ToString();
+    }
+
+    private async Task<string> VerifyAndFixQueryAsync(string naturalQuery, DatabaseSchema schema, string sqlQuery, string dbType, string schemaText)
+    {
+        var verificationPrompt = $@"You are a SQL query verifier for {dbType.ToUpperInvariant()}.
+
+Your task is to verify and fix a SQL query that failed safety validation.
+
+Original Question: ""{naturalQuery}""
+
+Generated SQL Query (REJECTED):
+{sqlQuery}
+
+Database Schema:
+{schemaText}
+
+Instructions:
+1. The query was rejected because it contains dangerous operations or is not a SELECT statement
+2. You MUST generate a valid, safe SELECT query that answers the original question
+3. Ensure the query ONLY contains SELECT operations
+4. Verify that all table names and column names exist in the schema
+5. Fix any syntax errors or logical issues
+6. Use proper {dbType} syntax
+
+Return ONLY the corrected SQL query, no explanations or markdown formatting.";
+
+        try
+        {
+            var verifiedResponse = await _ollamaService.QueryLLMAsync(verificationPrompt);
+            
+            // Clean up the response
+            var verifiedQuery = verifiedResponse.Trim();
+            if (verifiedQuery.StartsWith("```sql"))
+            {
+                verifiedQuery = verifiedQuery.Substring(6).Trim();
+            }
+            if (verifiedQuery.StartsWith("```"))
+            {
+                verifiedQuery = verifiedQuery.Substring(3).Trim();
+            }
+            if (verifiedQuery.EndsWith("```"))
+            {
+                verifiedQuery = verifiedQuery.Substring(0, verifiedQuery.Length - 3).Trim();
+            }
+            
+            _logger.LogInformation("Verification fixed SQL query: {SqlQuery}", verifiedQuery);
+            
+            return verifiedQuery;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Error during verification, returning original query");
+            throw;
+        }
     }
 }
 

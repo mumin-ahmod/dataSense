@@ -53,33 +53,28 @@ public class BackendController : ControllerBase
             _logger.LogInformation($"Generating SQL for: {request.NaturalQuery} (DB: {request.DbType})");
 
             // Generate SQL from natural language query
+            // The service now handles safety validation and self-correction internally
             var sqlQuery = await _sqlGenerator.GenerateSqlAsync(
                 request.NaturalQuery, 
                 request.Schema, 
                 request.DbType);
 
-            // Sanitize the query
+            // Final validation check (defense in depth)
             var sanitizedQuery = _safetyValidator.SanitizeQuery(sqlQuery);
-
-            // Validate safety
             var isValid = _safetyValidator.IsSafe(sanitizedQuery);
 
             if (!isValid)
             {
-                _logger.LogWarning($"Generated SQL failed safety validation: {sqlQuery}");
-                return Ok(new GenerateSqlResponse
+                _logger.LogError($"Generated SQL failed final safety validation after service self-correction: {sqlQuery}");
+                return StatusCode(500, new GenerateSqlResponse
                 {
-                    SqlQuery = sqlQuery,
+                    SqlQuery = string.Empty,
                     IsValid = false,
-                    ErrorMessage = "Generated SQL query contains dangerous operations or is not a SELECT statement",
-                    Metadata = new Dictionary<string, object>
-                    {
-                        { "sanitized_query", sanitizedQuery }
-                    }
+                    ErrorMessage = "Generated SQL query failed safety validation and could not be automatically corrected"
                 });
             }
 
-            _logger.LogInformation("SQL generated successfully and passed validation");
+            _logger.LogInformation("SQL generated successfully and passed all validation layers");
 
             return Ok(new GenerateSqlResponse
             {
@@ -91,6 +86,16 @@ public class BackendController : ControllerBase
                     { "tables_count", request.Schema.Tables.Count },
                     { "generated_at", DateTime.UtcNow }
                 }
+            });
+        }
+        catch (InvalidOperationException ex)
+        {
+            _logger.LogError(ex, "SQL query could not be fixed after safety validation failure");
+            return StatusCode(500, new GenerateSqlResponse
+            {
+                SqlQuery = string.Empty,
+                IsValid = false,
+                ErrorMessage = $"SQL generation failed: {ex.Message}"
             });
         }
         catch (Exception ex)

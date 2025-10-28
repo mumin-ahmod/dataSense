@@ -58,6 +58,8 @@ Return the SQL query:";
             
             // Step 2: Verify and fix the query
             var verifiedQuery = await VerifyAndFixQueryAsync(naturalLanguageQuery, schema, sqlQuery);
+
+             Console.WriteLine("\nVerified sql query: {VerifiedQuery}", verifiedQuery);
             
             return verifiedQuery;
         }
@@ -81,7 +83,7 @@ Instructions:
 1. Check if this SQL query is syntactically correct for the given schema
 2. Verify that all table names and column names exist in the schema
 3. Check for any syntax errors or logical issues
-4. If there are any issues, provide the corrected SQL query
+4. If there are any issues, modify or remove SQL query
 5. If the query is correct, return it as is
 
 Database Schema:
