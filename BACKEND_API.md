@@ -217,8 +217,11 @@ POST /interpret-results
 ### Response (Success)
 ```json
 {
-  "summary": "The total hours worked on Project Alpha last month was 45.5 hours.",
-  "insights": null,
+  "interpretation": {
+    "analysis": "The data shows the total hours worked on Project Alpha in the past month. The query retrieved data from the TimeEntries table filtered by project name and date range.",
+    "answer": "45.5 hours were worked on Project Alpha last month.",
+    "summary": "A total of 45.5 hours was spent on Project Alpha during the last month period."
+  },
   "isValid": true,
   "errorMessage": null
 }
@@ -227,8 +230,7 @@ POST /interpret-results
 ### Response (Error)
 ```json
 {
-  "summary": "",
-  "insights": null,
+  "interpretation": null,
   "isValid": false,
   "errorMessage": "An error occurred while interpreting results: ..."
 }
@@ -244,8 +246,10 @@ POST /interpret-results
 - `apiKey` (optional): API key for authentication
 
 **Response:**
-- `summary`: Natural language summary of results
-- `insights`: Additional insights or contextual information
+- `interpretation`: Structured interpretation object containing:
+  - `analysis`: Detailed analysis of the data and how it was retrieved
+  - `answer`: Direct answer to the original question based on the data
+  - `summary`: Brief summary of the findings
 - `isValid`: Whether interpretation was successful
 - `errorMessage`: Error message if interpretation failed
 
@@ -386,7 +390,9 @@ var summary = await httpClient.PostAsync("/api/v1/backend/interpret-results", in
 return new QueryResult
 {
     Data = results,
-    Summary = summary.Summary
+    Summary = summary.Interpretation?.Summary,
+    Analysis = summary.Interpretation?.Analysis,
+    Answer = summary.Interpretation?.Answer
 };
 ```
 
