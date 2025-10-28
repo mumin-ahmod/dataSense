@@ -20,7 +20,7 @@ public class OllamaService : IOllamaService
     {
         var request = new
         {
-            model = "llama3.2:latest",
+            model = "llama3.1:8b",
             prompt = prompt,
             stream = false
         };
