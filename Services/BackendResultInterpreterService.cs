@@ -33,26 +33,28 @@ Original Question: ""{request.OriginalQuery}""
 Relevant data pulled using this query: {request.SqlQuery} from database:
 {resultsJson}
 
-Your task:
-1. Analyze the data thoroughly. Provide insights, summaries, or interpretations as appropriate.
-2. Answer the original question based on the actual data provided.
-3. If there are no results or the data is empty, give a relevant and close answer to the original question.
-4. Be concise but informative (aim for 2-4 sentences).
-5. If the results contain multiple rows, provide a meaningful summary or highlight key findings.
+YOUR TASK:
+Analyze the data and answer the original question. Provide three things:
+1. Analysis: What the data shows (2-4 sentences)
+2. Answer: Direct answer to the original question (1-2 sentences)
+3. Summary: Brief summary of key findings (1 sentence)
 
-Provide your analysis and answer in natural language, and return ONLY the following JSON structure in your reply:
-{{
-    ""analysis"": ""..."",
-    ""answer"": ""..."",
-    ""summary"": ""...""
-}}";
+CRITICAL OUTPUT FORMAT:
+You MUST respond with ONLY valid, complete JSON. No markdown, no code blocks, no explanations before or after. The JSON must be complete with proper closing braces. Respond with ONLY this exact structure:
+
+{{""analysis"":""text here"",""answer"":""text here"",""summary"":""text here""}}";
 
 
             _logger.LogInformation("Interpreting query results for backend");
 
             var response = await _ollamaService.QueryLLMAsync(prompt);
 
+             _logger.LogInformation("Interpretation response: {Response}", response);
+
             var trimmedResponse = response.Trim();
+            
+            // Sanitize JSON response - remove markdown code blocks if present
+            trimmedResponse = SanitizeJsonResponse(trimmedResponse);
             
             // Parse the JSON response
             InterpretationData? interpretation = null;
@@ -65,7 +67,25 @@ Provide your analysis and answer in natural language, and return ONLY the follow
             }
             catch (JsonException jsonEx)
             {
-                _logger.LogWarning(jsonEx, "Failed to parse JSON response from LLM, falling back to plain text");
+                _logger.LogWarning(jsonEx, "Failed to parse JSON response from LLM, attempting recovery");
+                
+                // Try to recover incomplete JSON by adding missing closing brace
+                var recoveredJson = AttemptJsonRecovery(trimmedResponse);
+                if (recoveredJson != null)
+                {
+                    try
+                    {
+                        interpretation = JsonSerializer.Deserialize<InterpretationData>(recoveredJson, new JsonSerializerOptions
+                        {
+                            PropertyNameCaseInsensitive = true
+                        });
+                        _logger.LogInformation("Successfully recovered JSON");
+                    }
+                    catch (JsonException ex2)
+                    {
+                        _logger.LogWarning(ex2, "Recovery also failed");
+                    }
+                }
             }
 
             // Fallback: if parsing failed, return the full response in summary
@@ -87,6 +107,50 @@ Provide your analysis and answer in natural language, and return ONLY the follow
             _logger.LogError(ex, "Error interpreting query results");
             throw;
         }
+    }
+
+    private string SanitizeJsonResponse(string response)
+    {
+        var sanitized = response.Trim();
+        
+        // Remove markdown code blocks
+        if (sanitized.StartsWith("```json"))
+        {
+            sanitized = sanitized.Substring(7).Trim();
+        }
+        else if (sanitized.StartsWith("```"))
+        {
+            sanitized = sanitized.Substring(3).Trim();
+        }
+        
+        if (sanitized.EndsWith("```"))
+        {
+            sanitized = sanitized.Substring(0, sanitized.Length - 3).Trim();
+        }
+        
+        return sanitized;
+    }
+
+    private string? AttemptJsonRecovery(string json)
+    {
+        if (string.IsNullOrWhiteSpace(json))
+            return null;
+            
+        var trimmed = json.Trim();
+        
+        // Count opening and closing braces
+        var openBraces = trimmed.Count(c => c == '{');
+        var closeBraces = trimmed.Count(c => c == '}');
+        
+        // If missing closing braces, add them
+        if (openBraces > closeBraces)
+        {
+            var missing = openBraces - closeBraces;
+            _logger.LogInformation("Attempting to recover JSON by adding {Count} closing brace(s)", missing);
+            return trimmed + new string('}', missing);
+        }
+        
+        return null;
     }
 }
 
