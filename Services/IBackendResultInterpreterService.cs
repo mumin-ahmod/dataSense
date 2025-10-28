@@ -8,10 +8,10 @@ namespace DataSenseAPI.Services;
 public interface IBackendResultInterpreterService
 {
     /// <summary>
-    /// Interprets query results and provides natural language summary
+    /// Interprets query results and provides structured interpretation
     /// </summary>
     /// <param name="request">Request containing original query, SQL, and results</param>
-    /// <returns>Natural language interpretation of results</returns>
-    Task<string> InterpretResultsAsync(InterpretResultsRequest request);
+    /// <returns>Structured interpretation with analysis, answer, and summary</returns>
+    Task<InterpretationData> InterpretResultsAsync(InterpretResultsRequest request);
 }
 

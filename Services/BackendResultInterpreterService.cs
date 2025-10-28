@@ -16,7 +16,7 @@ public class BackendResultInterpreterService : IBackendResultInterpreterService
         _logger = logger;
     }
 
-    public async Task<string> InterpretResultsAsync(InterpretResultsRequest request)
+    public async Task<InterpretationData> InterpretResultsAsync(InterpretResultsRequest request)
     {
         try
         {
@@ -52,7 +52,35 @@ Provide your analysis and answer in natural language, and return ONLY the follow
 
             var response = await _ollamaService.QueryLLMAsync(prompt);
 
-            return response.Trim();
+            var trimmedResponse = response.Trim();
+            
+            // Parse the JSON response
+            InterpretationData? interpretation = null;
+            try
+            {
+                interpretation = JsonSerializer.Deserialize<InterpretationData>(trimmedResponse, new JsonSerializerOptions
+                {
+                    PropertyNameCaseInsensitive = true
+                });
+            }
+            catch (JsonException jsonEx)
+            {
+                _logger.LogWarning(jsonEx, "Failed to parse JSON response from LLM, falling back to plain text");
+            }
+
+            // Fallback: if parsing failed, return the full response in summary
+            if (interpretation == null)
+            {
+                _logger.LogInformation("Using fallback: returning full LLM response as summary");
+                interpretation = new InterpretationData
+                {
+                    Analysis = string.Empty,
+                    Answer = string.Empty,
+                    Summary = trimmedResponse
+                };
+            }
+
+            return interpretation;
         }
         catch (Exception ex)
         {

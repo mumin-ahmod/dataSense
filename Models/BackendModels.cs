@@ -121,19 +121,35 @@ public class InterpretResultsRequest
 }
 
 /// <summary>
+/// Structured interpretation of query results
+/// </summary>
+public class InterpretationData
+{
+    /// <summary>
+    /// Analysis of the data
+    /// </summary>
+    public string Analysis { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Answer to the original question based on the data
+    /// </summary>
+    public string Answer { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Brief summary of the findings
+    /// </summary>
+    public string Summary { get; set; } = string.Empty;
+}
+
+/// <summary>
 /// Response model for result interpretation endpoint
 /// </summary>
 public class InterpretResultsResponse
 {
     /// <summary>
-    /// Natural language summary of the results
+    /// Structured interpretation with analysis, answer, and summary
     /// </summary>
-    public string Summary { get; set; } = string.Empty;
-
-    /// <summary>
-    /// Additional insights or contextual information
-    /// </summary>
-    public string? Insights { get; set; }
+    public InterpretationData? Interpretation { get; set; }
 
     /// <summary>
     /// Whether the interpretation was successful

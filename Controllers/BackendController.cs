@@ -138,13 +138,13 @@ public class BackendController : ControllerBase
         {
             _logger.LogInformation($"Interpreting results for query: {request.OriginalQuery}");
 
-            var summary = await _resultInterpreter.InterpretResultsAsync(request);
+            var interpretation = await _resultInterpreter.InterpretResultsAsync(request);
 
             _logger.LogInformation("Results interpreted successfully");
 
             return Ok(new InterpretResultsResponse
             {
-                Summary = summary,
+                Interpretation = interpretation,
                 IsValid = true
             });
         }
@@ -153,7 +153,6 @@ public class BackendController : ControllerBase
             _logger.LogError(ex, "Error interpreting results");
             return StatusCode(500, new InterpretResultsResponse
             {
-                Summary = string.Empty,
                 IsValid = false,
                 ErrorMessage = $"An error occurred while interpreting results: {ex.Message}"
             });
