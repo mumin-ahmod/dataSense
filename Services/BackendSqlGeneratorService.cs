@@ -153,13 +153,13 @@ Database Schema:
 {schemaText}
 
 Instructions:
-1. Verify that all table names and column names EXACTLY match those in the schema above
-2. You MUST generate a valid, safe SELECT query that answers the original question
-3. Ensure the query ONLY contains SELECT operations (no INSERT, UPDATE, DELETE, DROP, TRUNCATE)
-4. Fix any references to tables or columns that do not exist in the schema
-5. Use proper {dbType} syntax
-6. Use table and column names exactly as shown in the schema (case-sensitive)
-7. Only use JOINs for tables that exist in the schema
+1. Verify that all table names and column names EXACTLY match those in the schema above,
+2. You MUST generate a valid, safe SELECT query that answers the original question, check for any syntax errors or logical issues,
+3. Ensure the query ONLY contains SELECT operations (no INSERT, UPDATE, DELETE, DROP, TRUNCATE),
+4. Fix any references to tables or columns that do not exist in the schema,
+5. Use proper {dbType} syntax,
+6. Use table and column names exactly as shown in the schema (case-sensitive),
+7. Only use JOINs for tables that exist in the schema,
 
 CRITICAL: If the generated query references tables or columns that don't exist in the schema, you MUST remove those references and rewrite the query using ONLY the tables and columns shown in the schema above.
 

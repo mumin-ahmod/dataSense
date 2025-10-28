@@ -30,7 +30,7 @@ public class BackendResultInterpreterService : IBackendResultInterpreterService
 
 Original Question: ""{request.OriginalQuery}""
 
-Relevant data from database:
+Relevant data pulled using this query: {request.SqlQuery} from database:
 {resultsJson}
 
 Your task:
