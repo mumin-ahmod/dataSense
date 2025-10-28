@@ -79,33 +79,21 @@ Return the SQL query:";
             
             _logger.LogInformation($"Generated SQL for {dbType}: {sqlQuery}");
             
-            // Step 2: Sanitize and validate safety before returning
-            var sanitizedQuery = _safetyValidator.SanitizeQuery(sqlQuery);
+            // Step 2: Always verify and fix the query using LLM to ensure correctness
+            _logger.LogInformation("Verifying and fixing generated SQL query");
+            var verifiedQuery = await VerifyAndFixQueryAsync(naturalQuery, schema, sqlQuery, dbType, schemaText);
+            
+            // Step 3: Sanitize and validate safety before returning
+            var sanitizedQuery = _safetyValidator.SanitizeQuery(verifiedQuery);
             var isSafe = _safetyValidator.IsSafe(sanitizedQuery);
             
             if (!isSafe)
             {
-                _logger.LogWarning($"Generated SQL failed safety validation. Attempting to fix: {sqlQuery}");
-                
-                // Step 3: Attempt to fix the query using LLM
-                var fixedQuery = await VerifyAndFixQueryAsync(naturalQuery, schema, sanitizedQuery, dbType, schemaText);
-                
-                // Validate the fixed query
-                var fixedSanitized = _safetyValidator.SanitizeQuery(fixedQuery);
-                var fixedIsSafe = _safetyValidator.IsSafe(fixedSanitized);
-                
-                if (fixedIsSafe)
-                {
-                    _logger.LogInformation("Successfully fixed SQL query after safety validation");
-                    return fixedSanitized;
-                }
-                else
-                {
-                    _logger.LogWarning("Fixed query still failed safety validation");
-                    throw new InvalidOperationException("Generated SQL query contains dangerous operations and could not be fixed");
-                }
+                _logger.LogWarning("Verified SQL query failed safety validation");
+                throw new InvalidOperationException("Generated SQL query contains dangerous operations and could not be fixed");
             }
             
+            _logger.LogInformation("SQL query verified and passed safety validation");
             return sanitizedQuery;
         }
         catch (Exception ex)
@@ -154,23 +142,26 @@ Return the SQL query:";
     {
         var verificationPrompt = $@"You are a SQL query verifier for {dbType.ToUpperInvariant()}.
 
-Your task is to verify and fix a SQL query that failed safety validation.
+Your task is to verify and fix a SQL query to ensure it is correct and safe.
 
 Original Question: ""{naturalQuery}""
 
-Generated SQL Query (REJECTED):
+Generated SQL Query (to verify):
 {sqlQuery}
 
 Database Schema:
 {schemaText}
 
 Instructions:
-1. The query was rejected because it contains dangerous operations or is not a SELECT statement
+1. Verify that all table names and column names EXACTLY match those in the schema above
 2. You MUST generate a valid, safe SELECT query that answers the original question
-3. Ensure the query ONLY contains SELECT operations
-4. Verify that all table names and column names exist in the schema
-5. Fix any syntax errors or logical issues
-6. Use proper {dbType} syntax
+3. Ensure the query ONLY contains SELECT operations (no INSERT, UPDATE, DELETE, DROP, TRUNCATE)
+4. Fix any references to tables or columns that do not exist in the schema
+5. Use proper {dbType} syntax
+6. Use table and column names exactly as shown in the schema (case-sensitive)
+7. Only use JOINs for tables that exist in the schema
+
+CRITICAL: If the generated query references tables or columns that don't exist in the schema, you MUST remove those references and rewrite the query using ONLY the tables and columns shown in the schema above.
 
 Return ONLY the corrected SQL query, no explanations or markdown formatting.";
 
@@ -193,13 +184,13 @@ Return ONLY the corrected SQL query, no explanations or markdown formatting.";
                 verifiedQuery = verifiedQuery.Substring(0, verifiedQuery.Length - 3).Trim();
             }
             
-            _logger.LogInformation("Verification fixed SQL query: {SqlQuery}", verifiedQuery);
+            _logger.LogInformation("Verified and fixed SQL query: {SqlQuery}", verifiedQuery);
             
             return verifiedQuery;
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, "Error during verification, returning original query");
+            _logger.LogError(ex, "Error during verification");
             throw;
         }
     }
