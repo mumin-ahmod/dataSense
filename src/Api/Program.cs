@@ -1,6 +1,9 @@
 using MediatR;
 using DataSenseAPI.Application.Abstractions;
 using DataSenseAPI.Infrastructure.Services;
+using DataSenseAPI.Infrastructure.AppDb;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.Identity;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -18,6 +21,15 @@ builder.Services.AddScoped<IOllamaService, OllamaService>();
 builder.Services.AddScoped<ISqlSafetyValidator, SqlSafetyValidator>();
 builder.Services.AddScoped<IBackendSqlGeneratorService, BackendSqlGeneratorService>();
 builder.Services.AddScoped<IBackendResultInterpreterService, BackendResultInterpreterService>();
+
+// Database and Identity
+builder.Services.AddDbContext<ApplicationDbContext>(options =>
+    options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
+
+builder.Services
+    .AddIdentity<IdentityUser, IdentityRole>()
+    .AddEntityFrameworkStores<ApplicationDbContext>()
+    .AddDefaultTokenProviders();
 
 // Configure CORS
 builder.Services.AddCors(options =>
