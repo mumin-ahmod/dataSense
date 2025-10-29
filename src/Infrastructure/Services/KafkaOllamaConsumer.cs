@@ -1,0 +1,208 @@
+using System.Text.Json;
+using Confluent.Kafka;
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
+using DataSenseAPI.Application.Abstractions;
+using DataSenseAPI.Domain.Models;
+
+namespace DataSenseAPI.Infrastructure.Services;
+
+public class KafkaOllamaConsumer : BackgroundService
+{
+    private readonly IConsumer<string, string> _consumer;
+    private readonly IOllamaService _ollamaService;
+    private readonly IRedisService _redisService;
+    private readonly IConversationService _conversationService;
+    private readonly IAppMetadataService _appMetadataService;
+    private readonly IQueryDetectionService _queryDetectionService;
+    private readonly ILogger<KafkaOllamaConsumer> _logger;
+    private const string OllamaRequestsTopic = "datasense-ollama-requests";
+
+    public KafkaOllamaConsumer(
+        IOllamaService ollamaService,
+        IRedisService redisService,
+        IConversationService conversationService,
+        IAppMetadataService appMetadataService,
+        IQueryDetectionService queryDetectionService,
+        ILogger<KafkaOllamaConsumer> logger)
+    {
+        _ollamaService = ollamaService;
+        _redisService = redisService;
+        _conversationService = conversationService;
+        _appMetadataService = appMetadataService;
+        _queryDetectionService = queryDetectionService;
+        _logger = logger;
+
+        var config = new ConsumerConfig
+        {
+            BootstrapServers = Environment.GetEnvironmentVariable("KAFKA_BOOTSTRAP_SERVERS") ?? "localhost:9092",
+            GroupId = "datasense-ollama-consumer-group",
+            AutoOffsetReset = AutoOffsetReset.Earliest,
+            EnableAutoCommit = true,
+            EnablePartitionEof = true
+        };
+
+        _consumer = new ConsumerBuilder<string, string>(config).Build();
+    }
+
+    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
+    {
+        _consumer.Subscribe(OllamaRequestsTopic);
+        _logger.LogInformation("Kafka consumer started, listening to topic: {Topic}", OllamaRequestsTopic);
+
+        try
+        {
+            while (!stoppingToken.IsCancellationRequested)
+            {
+                try
+                {
+                    var result = _consumer.Consume(stoppingToken);
+
+                    if (result.IsPartitionEOF)
+                    {
+                        _logger.LogDebug("Reached end of partition");
+                        continue;
+                    }
+
+                    _logger.LogDebug("Received message from Kafka");
+
+                    // Process message asynchronously
+                    _ = Task.Run(async () => await ProcessMessageAsync(result.Message.Value, result.Message.Headers), stoppingToken);
+                }
+                catch (ConsumeException ex)
+                {
+                    _logger.LogError(ex, "Error consuming message from Kafka");
+                }
+                catch (OperationCanceledException)
+                {
+                    break;
+                }
+            }
+        }
+        finally
+        {
+            _consumer.Close();
+        }
+    }
+
+    private async Task ProcessMessageAsync(string message, Headers? headers)
+    {
+        try
+        {
+            var request = JsonSerializer.Deserialize<JsonElement>(message);
+            
+            if (!request.TryGetProperty("conversationId", out var conversationIdElement))
+            {
+                _logger.LogWarning("Message missing conversationId");
+                return;
+            }
+
+            var conversationId = conversationIdElement.GetString();
+            if (string.IsNullOrEmpty(conversationId))
+            {
+                _logger.LogWarning("Invalid conversationId in message");
+                return;
+            }
+
+            if (!request.TryGetProperty("prompt", out var promptElement))
+            {
+                _logger.LogWarning("Message missing prompt");
+                return;
+            }
+
+            var prompt = promptElement.GetString() ?? "";
+            var metadata = request.TryGetProperty("metadata", out var metadataElement) 
+                ? JsonSerializer.Deserialize<Dictionary<string, object>>(metadataElement.GetRawText()) 
+                : null;
+
+            // Get conversation and chat history
+            var conversation = await _conversationService.GetConversationByIdAsync(conversationId);
+            if (conversation == null)
+            {
+                _logger.LogWarning("Conversation not found: {ConversationId}", conversationId);
+                return;
+            }
+
+            var history = await _redisService.GetChatHistoryAsync(conversationId);
+            var appMetadata = await _appMetadataService.GetAppMetadataAsync(conversation.UserId);
+
+            // Build context-aware prompt
+            var contextPrompt = BuildContextPrompt(prompt, history, appMetadata, metadata);
+
+            // Query Ollama
+            var response = await _ollamaService.QueryLLMAsync(contextPrompt);
+
+            // Save assistant response to history
+            var assistantMessage = new ChatMessage
+            {
+                ConversationId = conversationId,
+                Role = "assistant",
+                Content = response,
+                Timestamp = DateTime.UtcNow,
+                Metadata = metadata
+            };
+
+            await _redisService.AddMessageToHistoryAsync(conversationId, assistantMessage);
+
+            // Update conversation timestamp
+            conversation.UpdatedAt = DateTime.UtcNow;
+            await _redisService.SaveConversationAsync(conversationId, conversation);
+
+            _logger.LogInformation("Processed Ollama request for conversation: {ConversationId}", conversationId);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error processing Ollama message from Kafka");
+        }
+    }
+
+    private string BuildContextPrompt(
+        string userMessage, 
+        List<ChatMessage> history, 
+        AppMetadata? appMetadata,
+        Dictionary<string, object>? metadata)
+    {
+        var prompt = new System.Text.StringBuilder();
+
+        // Add app context if available
+        if (appMetadata != null)
+        {
+            if (!string.IsNullOrEmpty(appMetadata.Description))
+            {
+                prompt.AppendLine($"Application context: {appMetadata.Description}");
+            }
+            
+            if (appMetadata.Links != null && appMetadata.Links.Any())
+            {
+                prompt.AppendLine("Relevant links:");
+                foreach (var link in appMetadata.Links)
+                {
+                    prompt.AppendLine($"- {link.Title}: {link.Url}");
+                }
+            }
+        }
+
+        // Add recent chat history (last 10 messages)
+        var recentHistory = history.TakeLast(10).ToList();
+        if (recentHistory.Any())
+        {
+            prompt.AppendLine("\nConversation history:");
+            foreach (var msg in recentHistory)
+            {
+                prompt.AppendLine($"{msg.Role}: {msg.Content}");
+            }
+        }
+
+        prompt.AppendLine($"\nUser: {userMessage}");
+        prompt.AppendLine("Assistant:");
+
+        return prompt.ToString();
+    }
+
+    public override void Dispose()
+    {
+        _consumer?.Dispose();
+        base.Dispose();
+    }
+}
+
