@@ -1,6 +1,7 @@
 using MediatR;
 using DataSenseAPI.Application.Abstractions;
 using DataSenseAPI.Infrastructure.Services;
+using DataSenseAPI.Infrastructure.Repositories;
 using DataSenseAPI.Infrastructure.AppDb;
 using DataSenseAPI.Api.Middleware;
 using Microsoft.EntityFrameworkCore;
@@ -45,7 +46,15 @@ builder.Services.AddScoped<IAppMetadataService, AppMetadataService>();
 // Kafka Consumer Background Service
 builder.Services.AddHostedService<KafkaOllamaConsumer>();
 
-// Database and Identity
+// Dapper Repositories
+builder.Services.AddSingleton<IDbConnectionFactory, DbConnectionFactory>();
+builder.Services.AddScoped<IApiKeyRepository, ApiKeyRepository>();
+builder.Services.AddScoped<IConversationRepository, ConversationRepository>();
+builder.Services.AddScoped<IChatMessageRepository, ChatMessageRepository>();
+builder.Services.AddScoped<IRequestLogRepository, RequestLogRepository>();
+builder.Services.AddScoped<IPricingRecordRepository, PricingRecordRepository>();
+
+// Database and Identity (for authentication only)
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
 

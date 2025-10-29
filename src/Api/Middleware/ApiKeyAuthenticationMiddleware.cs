@@ -48,7 +48,9 @@ public class ApiKeyAuthenticationMiddleware
 
         if (!string.IsNullOrEmpty(apiKey))
         {
-            if (await apiKeyService.ValidateApiKeyAsync(apiKey, out var userId, out var apiKeyId))
+            string? userId;
+            string? apiKeyId;
+            if (await apiKeyService.ValidateApiKeyAsync(apiKey, out userId, out apiKeyId))
             {
                 // Set user claims
                 var claims = new List<Claim>

@@ -1,23 +1,21 @@
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using DataSenseAPI.Application.Abstractions;
 using DataSenseAPI.Domain.Models;
-using DataSenseAPI.Infrastructure.AppDb;
 
 namespace DataSenseAPI.Infrastructure.Services;
 
 public class ConversationService : IConversationService
 {
-    private readonly ApplicationDbContext _context;
+    private readonly IConversationRepository _repository;
     private readonly IRedisService _redisService;
     private readonly ILogger<ConversationService> _logger;
 
     public ConversationService(
-        ApplicationDbContext context, 
+        IConversationRepository repository, 
         IRedisService redisService,
         ILogger<ConversationService> logger)
     {
-        _context = context;
+        _repository = repository;
         _redisService = redisService;
         _logger = logger;
     }
@@ -40,8 +38,7 @@ public class ConversationService : IConversationService
             IsActive = true
         };
 
-        _context.Set<Conversation>().Add(conversation);
-        await _context.SaveChangesAsync();
+        conversation = await _repository.CreateAsync(conversation);
 
         // Cache in Redis for quick access
         await _redisService.SaveConversationAsync(conversation.Id, conversation);
@@ -59,8 +56,7 @@ public class ConversationService : IConversationService
             return cached;
 
         // Fallback to database
-        var conversation = await _context.Set<Conversation>()
-            .FirstOrDefaultAsync(c => c.Id == conversationId && c.IsActive);
+        var conversation = await _repository.GetByIdAsync(conversationId);
 
         if (conversation != null)
         {
@@ -72,10 +68,7 @@ public class ConversationService : IConversationService
 
     public async Task<List<Conversation>> GetUserConversationsAsync(string userId)
     {
-        return await _context.Set<Conversation>()
-            .Where(c => c.UserId == userId && c.IsActive)
-            .OrderByDescending(c => c.UpdatedAt ?? c.CreatedAt)
-            .ToListAsync();
+        return await _repository.GetByUserIdAsync(userId);
     }
 }
 

@@ -5,22 +5,20 @@ using Microsoft.IdentityModel.Tokens;
 using System.Security.Claims;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Configuration;
-using Microsoft.EntityFrameworkCore;
 using DataSenseAPI.Application.Abstractions;
 using DataSenseAPI.Domain.Models;
-using DataSenseAPI.Infrastructure.AppDb;
 
 namespace DataSenseAPI.Infrastructure.Services;
 
 public class ApiKeyService : IApiKeyService
 {
-    private readonly ApplicationDbContext _context;
+    private readonly IApiKeyRepository _repository;
     private readonly ILogger<ApiKeyService> _logger;
     private readonly string _jwtSecret;
 
-    public ApiKeyService(ApplicationDbContext context, ILogger<ApiKeyService> logger, IConfiguration configuration)
+    public ApiKeyService(IApiKeyRepository repository, ILogger<ApiKeyService> logger, IConfiguration configuration)
     {
-        _context = context;
+        _repository = repository;
         _logger = logger;
         _jwtSecret = configuration["Jwt:Secret"] ?? throw new InvalidOperationException("JWT Secret not configured");
     }
@@ -36,11 +34,14 @@ public class ApiKeyService : IApiKeyService
         // Hash the API key for storage
         var keyHash = HashApiKey(apiKey);
 
+        // Generate key ID
+        var keyId = Guid.NewGuid().ToString();
+
         // Create JWT token with claims
         var claims = new List<Claim>
         {
             new Claim("userId", userId),
-            new Claim("keyId", Guid.NewGuid().ToString()),
+            new Claim("keyId", keyId),
             new Claim("name", name)
         };
 
@@ -68,6 +69,7 @@ public class ApiKeyService : IApiKeyService
         // Store API key info in database (for tracking and revocation)
         var apiKeyEntity = new ApiKey
         {
+            Id = keyId,
             UserId = userId,
             KeyHash = keyHash,
             Name = name,
@@ -75,15 +77,14 @@ public class ApiKeyService : IApiKeyService
             CreatedAt = DateTime.UtcNow
         };
 
-        _context.Set<ApiKey>().Add(apiKeyEntity);
-        await _context.SaveChangesAsync();
+        await _repository.CreateAsync(apiKeyEntity);
 
         _logger.LogInformation("API key generated for user: {UserId}", userId);
 
         return jwtApiKey;
     }
 
-    public Task<bool> ValidateApiKeyAsync(string apiKey, out string? userId, out string? apiKeyId)
+    public async Task<bool> ValidateApiKeyAsync(string apiKey, out string? userId, out string? apiKeyId)
     {
         userId = null;
         apiKeyId = null;
@@ -111,37 +112,35 @@ public class ApiKeyService : IApiKeyService
 
             // Check if API key is still active in database
             var keyHash = HashApiKey(apiKey);
-            var apiKeyEntity = _context.Set<ApiKey>()
-                .FirstOrDefault(k => k.KeyHash == keyHash && k.IsActive);
+            var apiKeyEntity = await _repository.GetByKeyHashAsync(keyHash);
 
-            if (apiKeyEntity == null || (apiKeyEntity.ExpiresAt.HasValue && apiKeyEntity.ExpiresAt < DateTime.UtcNow))
+            if (apiKeyEntity == null || !apiKeyEntity.IsActive || (apiKeyEntity.ExpiresAt.HasValue && apiKeyEntity.ExpiresAt < DateTime.UtcNow))
             {
-                return Task.FromResult(false);
+                return false;
             }
 
-            return Task.FromResult(true);
+            return true;
         }
         catch (Exception ex)
         {
             _logger.LogWarning(ex, "API key validation failed");
-            return Task.FromResult(false);
+            return false;
         }
     }
 
     public async Task<ApiKey?> GetApiKeyByIdAsync(string apiKeyId)
     {
-        return await _context.Set<ApiKey>().FirstOrDefaultAsync(k => k.Id == apiKeyId);
+        return await _repository.GetByIdAsync(apiKeyId);
     }
 
     public async Task<bool> RevokeApiKeyAsync(string apiKeyId)
     {
-        var apiKey = await _context.Set<ApiKey>().FirstOrDefaultAsync(k => k.Id == apiKeyId);
+        var apiKey = await _repository.GetByIdAsync(apiKeyId);
         if (apiKey == null)
             return false;
 
         apiKey.IsActive = false;
-        await _context.SaveChangesAsync();
-        return true;
+        return await _repository.UpdateAsync(apiKey);
     }
 
     private static string HashApiKey(string apiKey)
