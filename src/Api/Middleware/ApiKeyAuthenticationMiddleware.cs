@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using DataSenseAPI.Application.Abstractions;
+using DataSenseAPI.Domain.Models;
 
 namespace DataSenseAPI.Api.Middleware;
 
@@ -7,11 +8,16 @@ public class ApiKeyAuthenticationMiddleware
 {
     private readonly RequestDelegate _next;
     private readonly ILogger<ApiKeyAuthenticationMiddleware> _logger;
+    private readonly ISubscriptionService _subscriptionService;
 
-    public ApiKeyAuthenticationMiddleware(RequestDelegate next, ILogger<ApiKeyAuthenticationMiddleware> logger)
+    public ApiKeyAuthenticationMiddleware(
+        RequestDelegate next, 
+        ILogger<ApiKeyAuthenticationMiddleware> logger,
+        ISubscriptionService subscriptionService)
     {
         _next = next;
         _logger = logger;
+        _subscriptionService = subscriptionService;
     }
 
     public async Task InvokeAsync(HttpContext context, IApiKeyService apiKeyService)
@@ -48,24 +54,32 @@ public class ApiKeyAuthenticationMiddleware
 
         if (!string.IsNullOrEmpty(apiKey))
         {
-            string? userId;
-            string? apiKeyId;
-            if (await apiKeyService.ValidateApiKeyAsync(apiKey, out userId, out apiKeyId))
+            var result = await apiKeyService.ValidateApiKeyAsync(apiKey);
+            if (result.Success && !string.IsNullOrEmpty(result.UserId))
             {
-                // Set user claims
+                // Check subscription limit before allowing request
+                var hasLimit = await _subscriptionService.CheckRequestLimitAsync(result.UserId);
+                if (!hasLimit)
+                {
+                    context.Response.StatusCode = 429; // Too Many Requests
+                    await context.Response.WriteAsJsonAsync(new { 
+                        error = "Monthly request limit exceeded. Please upgrade your subscription plan." 
+                    });
+                    return;
+                }
+
                 var claims = new List<Claim>
                 {
-                    new Claim(ClaimTypes.NameIdentifier, userId ?? ""),
-                    new Claim("UserId", userId ?? ""),
-                    new Claim("ApiKeyId", apiKeyId ?? "")
+                    new Claim(ClaimTypes.NameIdentifier, result.UserId ?? ""),
+                    new Claim("UserId", result.UserId ?? ""),
+                    new Claim("ApiKeyId", result.ApiKeyId ?? "")
                 };
 
                 var identity = new ClaimsIdentity(claims, "ApiKey");
                 context.User = new ClaimsPrincipal(identity);
 
-                // Store in items for easy access
-                context.Items["UserId"] = userId;
-                context.Items["ApiKeyId"] = apiKeyId;
+                context.Items["UserId"] = result.UserId;
+                context.Items["ApiKeyId"] = result.ApiKeyId;
             }
             else
             {

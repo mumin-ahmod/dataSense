@@ -13,12 +13,18 @@ namespace DataSenseAPI.Infrastructure.Services;
 public class ApiKeyService : IApiKeyService
 {
     private readonly IApiKeyRepository _repository;
+    private readonly ISubscriptionService _subscriptionService;
     private readonly ILogger<ApiKeyService> _logger;
     private readonly string _jwtSecret;
 
-    public ApiKeyService(IApiKeyRepository repository, ILogger<ApiKeyService> logger, IConfiguration configuration)
+    public ApiKeyService(
+        IApiKeyRepository repository, 
+        ISubscriptionService subscriptionService,
+        ILogger<ApiKeyService> logger, 
+        IConfiguration configuration)
     {
         _repository = repository;
+        _subscriptionService = subscriptionService;
         _logger = logger;
         _jwtSecret = configuration["Jwt:Secret"] ?? throw new InvalidOperationException("JWT Secret not configured");
     }
@@ -66,6 +72,10 @@ public class ApiKeyService : IApiKeyService
 
         var jwtApiKey = new JwtSecurityTokenHandler().WriteToken(token);
 
+        // Get user's subscription plan
+        var userSubscription = await _subscriptionService.GetUserSubscriptionAsync(userId);
+        var subscriptionPlanId = userSubscription?.SubscriptionPlanId;
+
         // Store API key info in database (for tracking and revocation)
         var apiKeyEntity = new ApiKey
         {
@@ -74,7 +84,8 @@ public class ApiKeyService : IApiKeyService
             KeyHash = keyHash,
             Name = name,
             UserMetadata = metadata,
-            CreatedAt = DateTime.UtcNow
+            CreatedAt = DateTime.UtcNow,
+            SubscriptionPlanId = subscriptionPlanId
         };
 
         await _repository.CreateAsync(apiKeyEntity);
@@ -84,11 +95,8 @@ public class ApiKeyService : IApiKeyService
         return jwtApiKey;
     }
 
-    public async Task<bool> ValidateApiKeyAsync(string apiKey, out string? userId, out string? apiKeyId)
+    public async Task<ApiKeyValidationResult> ValidateApiKeyAsync(string apiKey)
     {
-        userId = null;
-        apiKeyId = null;
-
         try
         {
             var tokenHandler = new JwtSecurityTokenHandler();
@@ -107,8 +115,8 @@ public class ApiKeyService : IApiKeyService
             }, out SecurityToken validatedToken);
 
             var jwtToken = (JwtSecurityToken)validatedToken;
-            userId = jwtToken.Claims.First(x => x.Type == "userId").Value;
-            apiKeyId = jwtToken.Claims.FirstOrDefault(x => x.Type == "keyId")?.Value;
+            var userId = jwtToken.Claims.First(x => x.Type == "userId").Value;
+            var apiKeyId = jwtToken.Claims.FirstOrDefault(x => x.Type == "keyId")?.Value;
 
             // Check if API key is still active in database
             var keyHash = HashApiKey(apiKey);
@@ -116,15 +124,15 @@ public class ApiKeyService : IApiKeyService
 
             if (apiKeyEntity == null || !apiKeyEntity.IsActive || (apiKeyEntity.ExpiresAt.HasValue && apiKeyEntity.ExpiresAt < DateTime.UtcNow))
             {
-                return false;
+                return new ApiKeyValidationResult { Success = false };
             }
 
-            return true;
+            return new ApiKeyValidationResult { Success = true, UserId = userId, ApiKeyId = apiKeyId };
         }
         catch (Exception ex)
         {
             _logger.LogWarning(ex, "API key validation failed");
-            return false;
+            return new ApiKeyValidationResult { Success = false };
         }
     }
 

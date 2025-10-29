@@ -22,10 +22,11 @@ public class RequestLogRepository : IRequestLogRepository
     {
         using var connection = _connectionFactory.CreateConnection();
         const string sql = @"
-            SELECT Id, UserId, ApiKeyId, Endpoint, RequestType, Timestamp, StatusCode, ProcessingTimeMs, 
-                   Metadata::jsonb as Metadata
-            FROM RequestLogs
-            WHERE Id = @Id";
+            SELECT id as Id, user_id as UserId, api_key_id as ApiKeyId, endpoint as Endpoint, 
+                   request_type as RequestType, timestamp as Timestamp, status_code as StatusCode, 
+                   processing_time_ms as ProcessingTimeMs, metadata as Metadata
+            FROM request_logs
+            WHERE id = @Id";
 
         var result = await connection.QueryFirstOrDefaultAsync<RequestLogDb>(sql, new { Id = id });
         return result?.ToDomain();
@@ -35,7 +36,7 @@ public class RequestLogRepository : IRequestLogRepository
     {
         using var connection = _connectionFactory.CreateConnection();
         const string sql = @"
-            INSERT INTO RequestLogs (Id, UserId, ApiKeyId, Endpoint, RequestType, Timestamp, StatusCode, ProcessingTimeMs, Metadata)
+            INSERT INTO request_logs (id, user_id, api_key_id, endpoint, request_type, timestamp, status_code, processing_time_ms, metadata)
             VALUES (@Id, @UserId, @ApiKeyId, @Endpoint, @RequestType, @Timestamp, @StatusCode, @ProcessingTimeMs, @Metadata::jsonb)
             RETURNING *";
 
@@ -48,11 +49,11 @@ public class RequestLogRepository : IRequestLogRepository
     {
         using var connection = _connectionFactory.CreateConnection();
         const string sql = @"
-            UPDATE RequestLogs
-            SET StatusCode = @StatusCode,
-                ProcessingTimeMs = @ProcessingTimeMs,
-                Metadata = @Metadata::jsonb
-            WHERE Id = @Id";
+            UPDATE request_logs
+            SET status_code = @StatusCode,
+                processing_time_ms = @ProcessingTimeMs,
+                metadata = @Metadata::jsonb
+            WHERE id = @Id";
 
         var db = RequestLogDb.FromDomain(log);
         var rowsAffected = await connection.ExecuteAsync(sql, db);
@@ -63,24 +64,25 @@ public class RequestLogRepository : IRequestLogRepository
     {
         using var connection = _connectionFactory.CreateConnection();
         var sql = @"
-            SELECT Id, UserId, ApiKeyId, Endpoint, RequestType, Timestamp, StatusCode, ProcessingTimeMs, 
-                   Metadata::jsonb as Metadata
-            FROM RequestLogs
-            WHERE UserId = @UserId";
+            SELECT id as Id, user_id as UserId, api_key_id as ApiKeyId, endpoint as Endpoint, 
+                   request_type as RequestType, timestamp as Timestamp, status_code as StatusCode, 
+                   processing_time_ms as ProcessingTimeMs, metadata as Metadata
+            FROM request_logs
+            WHERE user_id = @UserId";
 
         var parameters = new { UserId = userId, FromDate = fromDate, ToDate = toDate, Limit = limit };
 
         if (fromDate.HasValue)
         {
-            sql += " AND Timestamp >= @FromDate";
+            sql += " AND timestamp >= @FromDate";
         }
 
         if (toDate.HasValue)
         {
-            sql += " AND Timestamp <= @ToDate";
+            sql += " AND timestamp <= @ToDate";
         }
 
-        sql += " ORDER BY Timestamp DESC";
+        sql += " ORDER BY timestamp DESC";
 
         if (limit.HasValue)
         {
@@ -95,24 +97,25 @@ public class RequestLogRepository : IRequestLogRepository
     {
         using var connection = _connectionFactory.CreateConnection();
         var sql = @"
-            SELECT Id, UserId, ApiKeyId, Endpoint, RequestType, Timestamp, StatusCode, ProcessingTimeMs, 
-                   Metadata::jsonb as Metadata
-            FROM RequestLogs
-            WHERE ApiKeyId = @ApiKeyId";
+            SELECT id as Id, user_id as UserId, api_key_id as ApiKeyId, endpoint as Endpoint, 
+                   request_type as RequestType, timestamp as Timestamp, status_code as StatusCode, 
+                   processing_time_ms as ProcessingTimeMs, metadata as Metadata
+            FROM request_logs
+            WHERE api_key_id = @ApiKeyId";
 
         var parameters = new { ApiKeyId = apiKeyId, FromDate = fromDate, ToDate = toDate };
 
         if (fromDate.HasValue)
         {
-            sql += " AND Timestamp >= @FromDate";
+            sql += " AND timestamp >= @FromDate";
         }
 
         if (toDate.HasValue)
         {
-            sql += " AND Timestamp <= @ToDate";
+            sql += " AND timestamp <= @ToDate";
         }
 
-        sql += " ORDER BY Timestamp DESC";
+        sql += " ORDER BY timestamp DESC";
 
         var results = await connection.QueryAsync<RequestLogDb>(sql, parameters);
         return results.Select(r => r.ToDomain()).ToList();

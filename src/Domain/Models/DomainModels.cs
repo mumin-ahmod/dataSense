@@ -56,6 +56,7 @@ public class ApiKey
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime? ExpiresAt { get; set; }
     public Dictionary<string, object>? UserMetadata { get; set; }
+    public string? SubscriptionPlanId { get; set; } // Reference to subscription plan
 }
 
 // Conversations and Chat
@@ -138,6 +139,56 @@ public class PricingRecord
     public int RequestCount { get; set; }
     public decimal Cost { get; set; }
     public DateTime Date { get; set; } = DateTime.UtcNow.Date;
+}
+
+// Subscription and Billing
+public class SubscriptionPlan
+{
+    public string Id { get; set; } = Guid.NewGuid().ToString();
+    public string Name { get; set; } = string.Empty; // "Free", "Basic", etc.
+    public string Description { get; set; } = string.Empty;
+    public int MonthlyRequestLimit { get; set; }
+    public decimal MonthlyPrice { get; set; }
+    public bool IsActive { get; set; } = true;
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public DateTime? UpdatedAt { get; set; }
+    public Dictionary<string, object>? Features { get; set; }
+}
+
+public class UserSubscription
+{
+    public string Id { get; set; } = Guid.NewGuid().ToString();
+    public string UserId { get; set; } = string.Empty;
+    public string SubscriptionPlanId { get; set; } = string.Empty;
+    public DateTime StartDate { get; set; } = DateTime.UtcNow;
+    public DateTime? EndDate { get; set; }
+    public bool IsActive { get; set; } = true;
+    public int UsedRequestsThisMonth { get; set; } = 0;
+    public DateTime? LastResetDate { get; set; }
+}
+
+public class UsageRequest
+{
+    public string Id { get; set; } = Guid.NewGuid().ToString();
+    public string UserId { get; set; } = string.Empty;
+    public string? ApiKeyId { get; set; }
+    public string Endpoint { get; set; } = string.Empty;
+    public RequestType RequestType { get; set; }
+    public DateTime Timestamp { get; set; } = DateTime.UtcNow;
+    public int StatusCode { get; set; }
+    public long? ProcessingTimeMs { get; set; }
+    public Dictionary<string, object>? Metadata { get; set; }
+}
+
+public class RefreshToken
+{
+    public string Id { get; set; } = Guid.NewGuid().ToString();
+    public string UserId { get; set; } = string.Empty;
+    public string Token { get; set; } = string.Empty;
+    public DateTime ExpiresAt { get; set; }
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public bool IsRevoked { get; set; } = false;
+    public string? ReplacedByToken { get; set; }
 }
 
 

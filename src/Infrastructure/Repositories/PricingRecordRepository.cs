@@ -21,9 +21,10 @@ public class PricingRecordRepository : IPricingRecordRepository
     {
         using var connection = _connectionFactory.CreateConnection();
         const string sql = @"
-            SELECT Id, UserId, RequestType, RequestCount, Cost, Date
-            FROM PricingRecords
-            WHERE Id = @Id";
+            SELECT id as Id, user_id as UserId, request_type as RequestType, 
+                   request_count as RequestCount, cost as Cost, date as Date
+            FROM pricing_records
+            WHERE id = @Id";
 
         return await connection.QueryFirstOrDefaultAsync<PricingRecord>(sql, new { Id = id });
     }
@@ -32,11 +33,11 @@ public class PricingRecordRepository : IPricingRecordRepository
     {
         using var connection = _connectionFactory.CreateConnection();
         const string sql = @"
-            INSERT INTO PricingRecords (Id, UserId, RequestType, RequestCount, Cost, Date)
+            INSERT INTO pricing_records (id, user_id, request_type, request_count, cost, date)
             VALUES (@Id, @UserId, @RequestType, @RequestCount, @Cost, @Date)
-            ON CONFLICT (UserId, Date, RequestType) 
-            DO UPDATE SET RequestCount = PricingRecords.RequestCount + @RequestCount,
-                         Cost = PricingRecords.Cost + @Cost
+            ON CONFLICT (user_id, date, request_type) 
+            DO UPDATE SET request_count = pricing_records.request_count + @RequestCount,
+                         cost = pricing_records.cost + @Cost
             RETURNING *";
 
         await connection.ExecuteAsync(sql, record);
@@ -47,10 +48,10 @@ public class PricingRecordRepository : IPricingRecordRepository
     {
         using var connection = _connectionFactory.CreateConnection();
         const string sql = @"
-            UPDATE PricingRecords
-            SET RequestCount = @RequestCount,
-                Cost = @Cost
-            WHERE Id = @Id";
+            UPDATE pricing_records
+            SET request_count = @RequestCount,
+                cost = @Cost
+            WHERE id = @Id";
 
         var rowsAffected = await connection.ExecuteAsync(sql, record);
         return rowsAffected > 0;
@@ -60,42 +61,42 @@ public class PricingRecordRepository : IPricingRecordRepository
     {
         using var connection = _connectionFactory.CreateConnection();
         var sql = @"
-            SELECT Id, UserId, RequestType, RequestCount, Cost, Date
-            FROM PricingRecords
-            WHERE UserId = @UserId AND Date = @Date";
-
-        var parameters = new { UserId = userId, Date = date.Date };
+            SELECT id as Id, user_id as UserId, request_type as RequestType, 
+                   request_count as RequestCount, cost as Cost, date as Date
+            FROM pricing_records
+            WHERE user_id = @UserId AND date = @Date";
 
         if (requestType.HasValue)
         {
-            sql += " AND RequestType = @RequestType";
-            parameters = new { UserId = userId, Date = date.Date, RequestType = requestType.Value };
+            sql += " AND request_type = @RequestType";
+            return await connection.QueryFirstOrDefaultAsync<PricingRecord>(sql, new { UserId = userId, Date = date.Date, RequestType = requestType.Value });
         }
 
-        return await connection.QueryFirstOrDefaultAsync<PricingRecord>(sql, parameters);
+        return await connection.QueryFirstOrDefaultAsync<PricingRecord>(sql, new { UserId = userId, Date = date.Date });
     }
 
     public async Task<List<PricingRecord>> GetByUserIdAsync(string userId, DateTime? fromDate = null, DateTime? toDate = null)
     {
         using var connection = _connectionFactory.CreateConnection();
         var sql = @"
-            SELECT Id, UserId, RequestType, RequestCount, Cost, Date
-            FROM PricingRecords
-            WHERE UserId = @UserId";
+            SELECT id as Id, user_id as UserId, request_type as RequestType, 
+                   request_count as RequestCount, cost as Cost, date as Date
+            FROM pricing_records
+            WHERE user_id = @UserId";
 
         var parameters = new { UserId = userId, FromDate = fromDate, ToDate = toDate };
 
         if (fromDate.HasValue)
         {
-            sql += " AND Date >= @FromDate";
+            sql += " AND date >= @FromDate";
         }
 
         if (toDate.HasValue)
         {
-            sql += " AND Date <= @ToDate";
+            sql += " AND date <= @ToDate";
         }
 
-        sql += " ORDER BY Date DESC";
+        sql += " ORDER BY date DESC";
 
         var results = await connection.QueryAsync<PricingRecord>(sql, parameters);
         return results.ToList();
@@ -104,18 +105,18 @@ public class PricingRecordRepository : IPricingRecordRepository
     public async Task<decimal> GetTotalCostByUserIdAsync(string userId, DateTime? fromDate = null, DateTime? toDate = null)
     {
         using var connection = _connectionFactory.CreateConnection();
-        var sql = "SELECT COALESCE(SUM(Cost), 0) FROM PricingRecords WHERE UserId = @UserId";
+        var sql = "SELECT COALESCE(SUM(cost), 0) FROM pricing_records WHERE user_id = @UserId";
 
         var parameters = new { UserId = userId, FromDate = fromDate, ToDate = toDate };
 
         if (fromDate.HasValue)
         {
-            sql += " AND Date >= @FromDate";
+            sql += " AND date >= @FromDate";
         }
 
         if (toDate.HasValue)
         {
-            sql += " AND Date <= @ToDate";
+            sql += " AND date <= @ToDate";
         }
 
         var result = await connection.QueryFirstOrDefaultAsync<decimal?>(sql, parameters);

@@ -10,6 +10,7 @@ using StackExchange.Redis;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
+using Microsoft.AspNetCore.Authorization;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -38,6 +39,9 @@ builder.Services.AddScoped<IRedisService, RedisService>();
 builder.Services.AddSingleton<IKafkaService, KafkaService>();
 
 // New Services
+builder.Services.AddScoped<ITokenService, TokenService>();
+builder.Services.AddScoped<IAuthService, AuthService>();
+builder.Services.AddScoped<ISubscriptionService, SubscriptionService>();
 builder.Services.AddScoped<IApiKeyService, ApiKeyService>();
 builder.Services.AddScoped<IConversationService, ConversationService>();
 builder.Services.AddScoped<IQueryDetectionService, QueryDetectionService>();
@@ -59,13 +63,36 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
 
 builder.Services
-    .AddIdentity<IdentityUser, IdentityRole>()
+    .AddIdentity<IdentityUser, IdentityRole>(options =>
+    {
+        // Password settings
+        options.Password.RequireDigit = true;
+        options.Password.RequiredLength = 8;
+        options.Password.RequireNonAlphanumeric = false;
+        options.Password.RequireUppercase = true;
+        options.Password.RequireLowercase = true;
+
+        // User settings
+        options.User.RequireUniqueEmail = true;
+    })
     .AddEntityFrameworkStores<ApplicationDbContext>()
     .AddDefaultTokenProviders();
+
+// Authorization policies
+builder.Services.AddAuthorization(options =>
+{
+    options.AddPolicy("SystemAdminOnly", policy => policy.RequireRole("SystemAdmin"));
+    options.AddPolicy("AuthenticatedUser", policy => policy.RequireAuthenticatedUser());
+});
 
 // JWT Authentication Configuration
 var jwtSecret = builder.Configuration["Jwt:Secret"] ?? Guid.NewGuid().ToString(); // Generate if not set
 var jwtKey = Encoding.UTF8.GetBytes(jwtSecret);
+
+// Store JWT secret in configuration for TokenService
+builder.Configuration["Jwt:Secret"] = jwtSecret;
+builder.Configuration["Jwt:Issuer"] = builder.Configuration["Jwt:Issuer"] ?? "datasense";
+builder.Configuration["Jwt:Audience"] = builder.Configuration["Jwt:Audience"] ?? "datasense-api";
 
 builder.Services.AddAuthentication(options =>
 {
@@ -113,6 +140,11 @@ if (app.Environment.IsDevelopment())
 
 // Middleware order is important
 app.UseCors("AllowAll");
+
+// Seed roles and subscription plans
+await DataSenseAPI.Infrastructure.Services.RoleSeeder.SeedRolesAsync(app.Services);
+await DataSenseAPI.Infrastructure.Services.RoleSeeder.SeedSubscriptionPlansAsync(app.Services);
+
 app.UseAuthentication();
 app.UseMiddleware<ApiKeyAuthenticationMiddleware>();
 app.UseMiddleware<RequestTrackingMiddleware>();

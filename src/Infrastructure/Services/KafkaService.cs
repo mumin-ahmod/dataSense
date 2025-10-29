@@ -21,7 +21,6 @@ public class KafkaService : IKafkaService
         {
             BootstrapServers = Environment.GetEnvironmentVariable("KAFKA_BOOTSTRAP_SERVERS") ?? "localhost:9092",
             Acks = Acks.All,
-            Retries = 3,
             EnableIdempotence = true
         };
 

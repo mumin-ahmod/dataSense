@@ -21,10 +21,11 @@ public class ConversationRepository : IConversationRepository
     {
         using var connection = _connectionFactory.CreateConnection();
         const string sql = @"
-            SELECT Id, UserId, ApiKeyId, Type, PlatformType, ExternalUserId, 
-                   CreatedAt, UpdatedAt, IsActive
-            FROM Conversations
-            WHERE Id = @Id AND IsActive = true";
+            SELECT conversation_id as Id, user_id as UserId, api_key_id as ApiKeyId, type as Type, 
+                   platform_type as PlatformType, external_user_id as ExternalUserId, 
+                   created_at as CreatedAt, updated_at as UpdatedAt, is_active as IsActive
+            FROM conversations
+            WHERE conversation_id = @Id AND is_active = true";
 
         return await connection.QueryFirstOrDefaultAsync<Conversation>(sql, new { Id = id });
     }
@@ -33,7 +34,7 @@ public class ConversationRepository : IConversationRepository
     {
         using var connection = _connectionFactory.CreateConnection();
         const string sql = @"
-            INSERT INTO Conversations (Id, UserId, ApiKeyId, Type, PlatformType, ExternalUserId, CreatedAt, UpdatedAt, IsActive)
+            INSERT INTO conversations (conversation_id, user_id, api_key_id, type, platform_type, external_user_id, created_at, updated_at, is_active)
             VALUES (@Id, @UserId, @ApiKeyId, @Type, @PlatformType, @ExternalUserId, @CreatedAt, @UpdatedAt, @IsActive)
             RETURNING *";
 
@@ -45,10 +46,10 @@ public class ConversationRepository : IConversationRepository
     {
         using var connection = _connectionFactory.CreateConnection();
         const string sql = @"
-            UPDATE Conversations
-            SET UpdatedAt = @UpdatedAt,
-                IsActive = @IsActive
-            WHERE Id = @Id";
+            UPDATE conversations
+            SET updated_at = @UpdatedAt,
+                is_active = @IsActive
+            WHERE conversation_id = @Id";
 
         var rowsAffected = await connection.ExecuteAsync(sql, conversation);
         return rowsAffected > 0;
@@ -57,7 +58,7 @@ public class ConversationRepository : IConversationRepository
     public async Task<bool> DeleteAsync(string id)
     {
         using var connection = _connectionFactory.CreateConnection();
-        const string sql = "UPDATE Conversations SET IsActive = false WHERE Id = @Id";
+        const string sql = "UPDATE conversations SET is_active = false WHERE conversation_id = @Id";
         var rowsAffected = await connection.ExecuteAsync(sql, new { Id = id });
         return rowsAffected > 0;
     }
@@ -66,11 +67,12 @@ public class ConversationRepository : IConversationRepository
     {
         using var connection = _connectionFactory.CreateConnection();
         const string sql = @"
-            SELECT Id, UserId, ApiKeyId, Type, PlatformType, ExternalUserId, 
-                   CreatedAt, UpdatedAt, IsActive
-            FROM Conversations
-            WHERE UserId = @UserId AND IsActive = true
-            ORDER BY COALESCE(UpdatedAt, CreatedAt) DESC";
+            SELECT conversation_id as Id, user_id as UserId, api_key_id as ApiKeyId, type as Type, 
+                   platform_type as PlatformType, external_user_id as ExternalUserId, 
+                   created_at as CreatedAt, updated_at as UpdatedAt, is_active as IsActive
+            FROM conversations
+            WHERE user_id = @UserId AND is_active = true
+            ORDER BY COALESCE(updated_at, created_at) DESC";
 
         var results = await connection.QueryAsync<Conversation>(sql, new { UserId = userId });
         return results.ToList();
@@ -80,11 +82,12 @@ public class ConversationRepository : IConversationRepository
     {
         using var connection = _connectionFactory.CreateConnection();
         const string sql = @"
-            SELECT Id, UserId, ApiKeyId, Type, PlatformType, ExternalUserId, 
-                   CreatedAt, UpdatedAt, IsActive
-            FROM Conversations
-            WHERE ExternalUserId = @ExternalUserId AND IsActive = true
-            ORDER BY COALESCE(UpdatedAt, CreatedAt) DESC";
+            SELECT conversation_id as Id, user_id as UserId, api_key_id as ApiKeyId, type as Type, 
+                   platform_type as PlatformType, external_user_id as ExternalUserId, 
+                   created_at as CreatedAt, updated_at as UpdatedAt, is_active as IsActive
+            FROM conversations
+            WHERE external_user_id = @ExternalUserId AND is_active = true
+            ORDER BY COALESCE(updated_at, created_at) DESC";
 
         var results = await connection.QueryAsync<Conversation>(sql, new { ExternalUserId = externalUserId });
         return results.ToList();

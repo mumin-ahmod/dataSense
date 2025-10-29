@@ -9,15 +9,21 @@ public class RequestTrackingMiddleware
     private readonly RequestDelegate _next;
     private readonly ILogger<RequestTrackingMiddleware> _logger;
     private readonly IKafkaService _kafkaService;
+    private readonly IUsageRequestRepository _usageRequestRepository;
+    private readonly ISubscriptionService _subscriptionService;
 
     public RequestTrackingMiddleware(
         RequestDelegate next, 
         ILogger<RequestTrackingMiddleware> logger,
-        IKafkaService kafkaService)
+        IKafkaService kafkaService,
+        IUsageRequestRepository usageRequestRepository,
+        ISubscriptionService subscriptionService)
     {
         _next = next;
         _logger = logger;
         _kafkaService = kafkaService;
+        _usageRequestRepository = usageRequestRepository;
+        _subscriptionService = subscriptionService;
     }
 
     public async Task InvokeAsync(HttpContext context)
@@ -41,8 +47,8 @@ public class RequestTrackingMiddleware
             await _next(context);
             stopwatch.Stop();
 
-            // Log request asynchronously via Kafka
-            var requestLog = new RequestLog
+            // Create usage request (append-only for billing)
+            var usageRequest = new UsageRequest
             {
                 UserId = userId,
                 ApiKeyId = apiKeyId,
@@ -58,27 +64,27 @@ public class RequestTrackingMiddleware
                 }
             };
 
+            // Save usage request asynchronously and send to Kafka for analytics
             _ = Task.Run(async () =>
             {
                 try
                 {
-                    await _kafkaService.ProduceRequestLogAsync(requestLog);
+                    // Save to database (append-only)
+                    await _usageRequestRepository.CreateAsync(usageRequest);
 
-                    // Also create pricing record (count requests per user/day)
-                    var pricingRecord = new PricingRecord
+                    // Send to Kafka for analytics (optional mirroring)
+                    await _kafkaService.ProduceAsync("datasense-usage-requests", 
+                        System.Text.Json.JsonSerializer.Serialize(usageRequest));
+
+                    // Increment subscription usage count
+                    if (!string.IsNullOrEmpty(userId) && userId != "anonymous")
                     {
-                        UserId = userId,
-                        RequestType = requestType,
-                        RequestCount = 1,
-                        Cost = CalculateCost(requestType),
-                        Date = DateTime.UtcNow.Date
-                    };
-
-                    await _kafkaService.ProducePricingRecordAsync(pricingRecord);
+                        await _subscriptionService.IncrementRequestCountAsync(userId);
+                    }
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogError(ex, "Error logging request to Kafka");
+                    _logger.LogError(ex, "Error logging usage request");
                 }
             });
         }
@@ -87,7 +93,8 @@ public class RequestTrackingMiddleware
             stopwatch.Stop();
             _logger.LogError(ex, "Error processing request");
 
-            var errorLog = new RequestLog
+            // Log error as usage request
+            var errorRequest = new UsageRequest
             {
                 UserId = userId,
                 ApiKeyId = apiKeyId,
@@ -106,7 +113,7 @@ public class RequestTrackingMiddleware
             {
                 try
                 {
-                    await _kafkaService.ProduceRequestLogAsync(errorLog);
+                    await _usageRequestRepository.CreateAsync(errorRequest);
                 }
                 catch
                 {
@@ -116,19 +123,6 @@ public class RequestTrackingMiddleware
 
             throw;
         }
-    }
-
-    private static decimal CalculateCost(RequestType requestType)
-    {
-        // Simple pricing model - can be enhanced
-        return requestType switch
-        {
-            RequestType.GenerateSql => 0.001m,
-            RequestType.InterpretResults => 0.002m,
-            RequestType.ChatMessage => 0.003m,
-            RequestType.WelcomeSuggestions => 0.0005m,
-            _ => 0.001m
-        };
     }
 }
 

@@ -22,10 +22,11 @@ public class ApiKeyRepository : IApiKeyRepository
     {
         using var connection = _connectionFactory.CreateConnection();
         const string sql = @"
-            SELECT Id, UserId, KeyHash, Name, IsActive, CreatedAt, ExpiresAt, 
-                   UserMetadata::jsonb as UserMetadata
-            FROM ApiKeys
-            WHERE Id = @Id";
+            SELECT api_key_id as Id, user_id as UserId, key_hash as KeyHash, name as Name, 
+                   is_active as IsActive, created_at as CreatedAt, last_used_at as ExpiresAt, 
+                   user_metadata::jsonb as UserMetadata, subscription_plan_id as SubscriptionPlanId
+            FROM api_keys
+            WHERE api_key_id = @Id";
 
         var result = await connection.QueryFirstOrDefaultAsync<ApiKeyDb>(sql, new { Id = id });
         return result?.ToDomain();
@@ -35,10 +36,11 @@ public class ApiKeyRepository : IApiKeyRepository
     {
         using var connection = _connectionFactory.CreateConnection();
         const string sql = @"
-            SELECT Id, UserId, KeyHash, Name, IsActive, CreatedAt, ExpiresAt, 
-                   UserMetadata::jsonb as UserMetadata
-            FROM ApiKeys
-            WHERE KeyHash = @KeyHash";
+            SELECT api_key_id as Id, user_id as UserId, key_hash as KeyHash, name as Name, 
+                   is_active as IsActive, created_at as CreatedAt, last_used_at as ExpiresAt, 
+                   user_metadata::jsonb as UserMetadata, subscription_plan_id as SubscriptionPlanId
+            FROM api_keys
+            WHERE key_hash = @KeyHash";
 
         var result = await connection.QueryFirstOrDefaultAsync<ApiKeyDb>(sql, new { KeyHash = keyHash });
         return result?.ToDomain();
@@ -48,8 +50,8 @@ public class ApiKeyRepository : IApiKeyRepository
     {
         using var connection = _connectionFactory.CreateConnection();
         const string sql = @"
-            INSERT INTO ApiKeys (Id, UserId, KeyHash, Name, IsActive, CreatedAt, ExpiresAt, UserMetadata)
-            VALUES (@Id, @UserId, @KeyHash, @Name, @IsActive, @CreatedAt, @ExpiresAt, @UserMetadata::jsonb)
+            INSERT INTO api_keys (api_key_id, user_id, key_hash, name, is_active, created_at, last_used_at, user_metadata, subscription_plan_id)
+            VALUES (@Id, @UserId, @KeyHash, @Name, @IsActive, @CreatedAt, @ExpiresAt, @UserMetadata::jsonb, @SubscriptionPlanId)
             RETURNING *";
 
         var db = ApiKeyDb.FromDomain(apiKey);
@@ -61,11 +63,12 @@ public class ApiKeyRepository : IApiKeyRepository
     {
         using var connection = _connectionFactory.CreateConnection();
         const string sql = @"
-            UPDATE ApiKeys
-            SET IsActive = @IsActive,
-                ExpiresAt = @ExpiresAt,
-                UserMetadata = @UserMetadata::jsonb
-            WHERE Id = @Id";
+            UPDATE api_keys
+            SET is_active = @IsActive,
+                last_used_at = @ExpiresAt,
+                user_metadata = @UserMetadata::jsonb,
+                subscription_plan_id = @SubscriptionPlanId
+            WHERE api_key_id = @Id";
 
         var db = ApiKeyDb.FromDomain(apiKey);
         var rowsAffected = await connection.ExecuteAsync(sql, db);
@@ -75,7 +78,7 @@ public class ApiKeyRepository : IApiKeyRepository
     public async Task<bool> DeleteAsync(string id)
     {
         using var connection = _connectionFactory.CreateConnection();
-        const string sql = "DELETE FROM ApiKeys WHERE Id = @Id";
+        const string sql = "DELETE FROM api_keys WHERE api_key_id = @Id";
         var rowsAffected = await connection.ExecuteAsync(sql, new { Id = id });
         return rowsAffected > 0;
     }
@@ -84,11 +87,12 @@ public class ApiKeyRepository : IApiKeyRepository
     {
         using var connection = _connectionFactory.CreateConnection();
         const string sql = @"
-            SELECT Id, UserId, KeyHash, Name, IsActive, CreatedAt, ExpiresAt, 
-                   UserMetadata::jsonb as UserMetadata
-            FROM ApiKeys
-            WHERE UserId = @UserId
-            ORDER BY CreatedAt DESC";
+            SELECT api_key_id as Id, user_id as UserId, key_hash as KeyHash, name as Name, 
+                   is_active as IsActive, created_at as CreatedAt, last_used_at as ExpiresAt, 
+                   user_metadata::jsonb as UserMetadata, subscription_plan_id as SubscriptionPlanId
+            FROM api_keys
+            WHERE user_id = @UserId
+            ORDER BY created_at DESC";
 
         var results = await connection.QueryAsync<ApiKeyDb>(sql, new { UserId = userId });
         return results.Select(r => r.ToDomain()).ToList();
@@ -105,6 +109,7 @@ public class ApiKeyRepository : IApiKeyRepository
         public DateTime CreatedAt { get; set; }
         public DateTime? ExpiresAt { get; set; }
         public string? UserMetadata { get; set; }
+        public string? SubscriptionPlanId { get; set; }
 
         public static ApiKeyDb FromDomain(ApiKey apiKey)
         {
@@ -117,7 +122,8 @@ public class ApiKeyRepository : IApiKeyRepository
                 IsActive = apiKey.IsActive,
                 CreatedAt = apiKey.CreatedAt,
                 ExpiresAt = apiKey.ExpiresAt,
-                UserMetadata = apiKey.UserMetadata != null ? JsonSerializer.Serialize(apiKey.UserMetadata) : null
+                UserMetadata = apiKey.UserMetadata != null ? JsonSerializer.Serialize(apiKey.UserMetadata) : null,
+                SubscriptionPlanId = apiKey.SubscriptionPlanId
             };
         }
 
@@ -134,7 +140,8 @@ public class ApiKeyRepository : IApiKeyRepository
                 ExpiresAt = ExpiresAt,
                 UserMetadata = !string.IsNullOrEmpty(UserMetadata) 
                     ? JsonSerializer.Deserialize<Dictionary<string, object>>(UserMetadata) 
-                    : null
+                    : null,
+                SubscriptionPlanId = SubscriptionPlanId
             };
         }
     }

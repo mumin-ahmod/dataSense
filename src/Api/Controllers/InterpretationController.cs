@@ -3,6 +3,7 @@ using MediatR;
 using DataSenseAPI.Api.Contracts;
 using DataSenseAPI.Application.Commands.InterpretResults;
 using Microsoft.Extensions.Logging;
+using DataSenseAPI.Domain.Models;
 
 namespace DataSenseAPI.Controllers;
 

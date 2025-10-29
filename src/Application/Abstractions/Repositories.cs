@@ -52,3 +52,43 @@ public interface IPricingRecordRepository
     Task<decimal> GetTotalCostByUserIdAsync(string userId, DateTime? fromDate = null, DateTime? toDate = null);
 }
 
+// Subscription Repositories
+public interface ISubscriptionPlanRepository
+{
+    Task<SubscriptionPlan?> GetByIdAsync(string id);
+    Task<SubscriptionPlan?> GetByNameAsync(string name);
+    Task<List<SubscriptionPlan>> GetAllAsync();
+    Task<SubscriptionPlan> CreateAsync(SubscriptionPlan plan);
+    Task<bool> UpdateAsync(SubscriptionPlan plan);
+    Task<bool> DeleteAsync(string id);
+}
+
+public interface IUserSubscriptionRepository
+{
+    Task<UserSubscription?> GetByIdAsync(string id);
+    Task<UserSubscription?> GetByUserIdAsync(string userId);
+    Task<UserSubscription> CreateAsync(UserSubscription subscription);
+    Task<bool> UpdateAsync(UserSubscription subscription);
+    Task<bool> DeactivateAsync(string id);
+}
+
+public interface IUsageRequestRepository
+{
+    Task<UsageRequest> CreateAsync(UsageRequest request);
+    Task<UsageRequest?> GetByIdAsync(string id);
+    Task<List<UsageRequest>> GetByUserIdAsync(string userId, DateTime? fromDate = null, DateTime? toDate = null, int? limit = null);
+    Task<List<UsageRequest>> GetByApiKeyIdAsync(string apiKeyId, DateTime? fromDate = null, DateTime? toDate = null);
+    Task<int> GetCountByUserIdAsync(string userId, DateTime? fromDate = null, DateTime? toDate = null);
+    Task<int> GetCountByApiKeyIdAsync(string apiKeyId, DateTime? fromDate = null, DateTime? toDate = null);
+}
+
+public interface IRefreshTokenRepository
+{
+    Task<RefreshToken?> GetByTokenAsync(string token);
+    Task<RefreshToken?> GetByUserIdAsync(string userId);
+    Task<RefreshToken> CreateAsync(RefreshToken token);
+    Task<bool> RevokeAsync(string token);
+    Task<bool> RevokeAllForUserAsync(string userId);
+    Task<bool> DeleteExpiredTokensAsync();
+}
+

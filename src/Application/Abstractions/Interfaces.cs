@@ -48,9 +48,16 @@ public interface IKafkaService
 public interface IApiKeyService
 {
     Task<string> GenerateApiKeyAsync(string userId, string name, Dictionary<string, object>? metadata = null);
-    Task<bool> ValidateApiKeyAsync(string apiKey, out string? userId, out string? apiKeyId);
+    Task<ApiKeyValidationResult> ValidateApiKeyAsync(string apiKey);
     Task<ApiKey?> GetApiKeyByIdAsync(string apiKeyId);
     Task<bool> RevokeApiKeyAsync(string apiKeyId);
+}
+
+public sealed class ApiKeyValidationResult
+{
+    public bool Success { get; init; }
+    public string? UserId { get; init; }
+    public string? ApiKeyId { get; init; }
 }
 
 // Conversation Service
@@ -75,4 +82,44 @@ public interface IAppMetadataService
     Task<List<string>> GenerateWelcomeSuggestionsAsync(DatabaseSchema? schema);
 }
 
+// Authentication Services
+public interface ITokenService
+{
+    Task<string> GenerateAccessTokenAsync(string userId, string email, string? userName, IList<string> roles);
+    Task<string> GenerateRefreshTokenAsync();
+    Task<bool> ValidateRefreshTokenAsync(string token);
+}
+
+public interface IAuthService
+{
+    Task<AuthResult> RegisterAsync(string email, string password, string? fullName = null);
+    Task<AuthResult> SignInAsync(string email, string password);
+    Task<AuthResult> RefreshTokenAsync(string refreshToken);
+    Task<bool> RevokeTokenAsync(string refreshToken);
+}
+
+public class AuthResult
+{
+    public bool Success { get; init; }
+    public string? AccessToken { get; init; }
+    public string? RefreshToken { get; init; }
+    public DateTime? ExpiresAt { get; init; }
+    public string? UserId { get; init; }
+    public string? Email { get; init; }
+    public List<string> Roles { get; init; } = new();
+    public string? ErrorMessage { get; init; }
+}
+
+// Subscription Service
+public interface ISubscriptionService
+{
+    Task<SubscriptionPlan?> GetPlanByIdAsync(string planId);
+    Task<SubscriptionPlan?> GetPlanByNameAsync(string name);
+    Task<List<SubscriptionPlan>> GetAllPlansAsync();
+    Task<UserSubscription?> GetUserSubscriptionAsync(string userId);
+    Task<UserSubscription> AssignPlanToUserAsync(string userId, string planId);
+    Task<bool> CheckRequestLimitAsync(string userId);
+    Task<bool> IncrementRequestCountAsync(string userId);
+    Task ResetMonthlyUsageAsync(string userId);
+}
 
