@@ -1,5 +1,6 @@
 using System.Text;
 using System.Text.Json;
+using Microsoft.Extensions.Logging;
 using DataSenseAPI.Application.Abstractions;
 
 namespace DataSenseAPI.Infrastructure.Services;

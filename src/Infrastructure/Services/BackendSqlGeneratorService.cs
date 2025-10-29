@@ -1,4 +1,5 @@
 using System.Text;
+using Microsoft.Extensions.Logging;
 using DataSenseAPI.Domain.Models;
 using DataSenseAPI.Application.Abstractions;
 

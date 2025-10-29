@@ -1,4 +1,5 @@
 using System.Text.RegularExpressions;
+using Microsoft.Extensions.Logging;
 using DataSenseAPI.Application.Abstractions;
 
 namespace DataSenseAPI.Infrastructure.Services;
