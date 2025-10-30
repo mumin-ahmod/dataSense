@@ -13,6 +13,16 @@ An ASP.NET Core Web API that provides intelligent SQL generation and result inte
 
 See [BACKEND_API.md](./BACKEND_API.md) for complete API documentation.
 
+## 📚 Documentation
+
+Comprehensive API documentation is available in the `/docs` folder:
+
+- **[API Documentation](./docs/API_DOCUMENTATION.md)** - Complete reference with all endpoints, request/response structures, and examples
+- **[Quick Reference](./docs/API_QUICK_REFERENCE.md)** - Quick lookup guide for all endpoints
+- **[Integration Guide](./docs/INTEGRATION_GUIDE.md)** - Integration patterns, workflows, and best practices
+- **[OpenAPI Spec](./docs/openapi.yaml)** - Import into Swagger UI or other API tools
+- **[Postman Collection](./docs/DataSense_Postman_Collection.json)** - Import directly into Postman for testing
+
 ## Prerequisites
 
 - .NET 8.0 SDK

@@ -1,0 +1,797 @@
+openapi: 3.0.3
+info:
+  title: DataSense API
+  description: |
+    DataSense API provides AI-powered SQL generation and natural language interpretation of database queries.
+    
+    ## Features
+    - Generate SQL from natural language queries
+    - Interpret query results with AI
+    - Interactive chat interface for database queries
+    - User authentication and API key management
+    
+    ## Authentication
+    Use either API Key or JWT Bearer token for authentication.
+  version: 1.0.0
+  contact:
+    email: support@datasense.com
+    url: https://docs.datasense.com
+  license:
+    name: Proprietary
+    url: https://datasense.com/terms
+
+servers:
+  - url: https://api.datasense.com/api/v1
+    description: Production server
+  - url: http://localhost:5000/api/v1
+    description: Development server
+
+tags:
+  - name: Authentication
+    description: User registration and authentication endpoints
+  - name: SQL Generation
+    description: Generate SQL from natural language queries
+  - name: Results Interpretation
+    description: Interpret query results with AI
+  - name: Chat & Conversation
+    description: Interactive chat interface for database queries
+  - name: App Metadata
+    description: Manage application metadata and context
+  - name: Health
+    description: Health check endpoints
+
+security:
+  - ApiKeyAuth: []
+  - BearerAuth: []
+
+paths:
+  /auth/register:
+    post:
+      tags:
+        - Authentication
+      summary: Register a new user
+      description: Create a new user account with email and password
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+            example:
+              email: user@example.com
+              password: securePassword123
+              fullName: John Doe
+      responses:
+        '200':
+          description: User registered successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '400':
+          description: Invalid input or user already exists
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+
+  /auth/signin:
+    post:
+      tags:
+        - Authentication
+      summary: Sign in user
+      description: Authenticate user with email and password
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SignInRequest'
+            example:
+              email: user@example.com
+              password: securePassword123
+      responses:
+        '200':
+          description: User signed in successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '401':
+          description: Invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+
+  /auth/refresh:
+    post:
+      tags:
+        - Authentication
+      summary: Refresh access token
+      description: Get a new access token using refresh token
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RefreshTokenRequest'
+            example:
+              refreshToken: your-refresh-token-here
+      responses:
+        '200':
+          description: Token refreshed successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '401':
+          description: Invalid or expired refresh token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+
+  /auth/revoke:
+    post:
+      tags:
+        - Authentication
+      summary: Revoke refresh token (sign out)
+      description: Invalidate refresh token and sign out user
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RefreshTokenRequest'
+      responses:
+        '200':
+          description: Token revoked successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Token revoked successfully
+        '400':
+          description: Failed to revoke token
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+
+  /backend/health:
+    get:
+      tags:
+        - Health
+      summary: Health check
+      description: Check API health status and get available endpoints
+      security: []
+      responses:
+        '200':
+          description: API is healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: healthy
+                  version:
+                    type: string
+                    example: "1.0"
+                  timestamp:
+                    type: string
+                    format: date-time
+                  endpoints:
+                    type: array
+                    items:
+                      type: string
+
+  /backend/generate-sql:
+    post:
+      tags:
+        - SQL Generation
+      summary: Generate SQL from natural language
+      description: Convert natural language query to SQL using provided database schema
+      security:
+        - ApiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GenerateSqlRequest'
+      responses:
+        '200':
+          description: SQL generated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GenerateSqlResponse'
+        '400':
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GenerateSqlResponse'
+
+  /backend/interpret-results:
+    post:
+      tags:
+        - Results Interpretation
+      summary: Interpret query results
+      description: Get natural language interpretation of query results
+      security:
+        - ApiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InterpretResultsRequest'
+      responses:
+        '200':
+          description: Results interpreted successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InterpretResultsResponse'
+        '400':
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InterpretResultsResponse'
+
+  /backend/welcome-suggestions:
+    post:
+      tags:
+        - Chat & Conversation
+      summary: Get welcome suggestions
+      description: Get AI-generated suggestions based on database schema
+      security:
+        - ApiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WelcomeSuggestionsRequest'
+      responses:
+        '200':
+          description: Suggestions generated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WelcomeSuggestionsResponse'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WelcomeSuggestionsResponse'
+
+  /backend/start-conversation:
+    post:
+      tags:
+        - Chat & Conversation
+      summary: Start new conversation
+      description: Initialize a new conversation session
+      security:
+        - ApiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StartConversationRequest'
+      responses:
+        '200':
+          description: Conversation started successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StartConversationResponse'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StartConversationResponse'
+
+  /backend/send-message:
+    post:
+      tags:
+        - Chat & Conversation
+      summary: Send chat message
+      description: Send a message in an active conversation
+      security:
+        - ApiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SendChatMessageRequest'
+      responses:
+        '200':
+          description: Message sent successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SendChatMessageResponse'
+        '400':
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+        '404':
+          description: Conversation not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SendChatMessageResponse'
+
+  /backend/app-metadata:
+    post:
+      tags:
+        - App Metadata
+      summary: Save app metadata
+      description: Save application metadata, links, and schema
+      security:
+        - ApiKeyAuth: []
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SaveAppMetadataRequest'
+      responses:
+        '200':
+          description: Metadata saved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  error:
+                    type: string
+
+components:
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-API-Key
+      description: API key for authentication
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT access token
+
+  schemas:
+    RegisterRequest:
+      type: object
+      required:
+        - email
+        - password
+      properties:
+        email:
+          type: string
+          format: email
+          example: user@example.com
+        password:
+          type: string
+          format: password
+          example: securePassword123
+        fullName:
+          type: string
+          example: John Doe
+
+    SignInRequest:
+      type: object
+      required:
+        - email
+        - password
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          format: password
+
+    RefreshTokenRequest:
+      type: object
+      required:
+        - refreshToken
+      properties:
+        refreshToken:
+          type: string
+
+    AuthResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        accessToken:
+          type: string
+          nullable: true
+        refreshToken:
+          type: string
+          nullable: true
+        expiresAt:
+          type: string
+          format: date-time
+          nullable: true
+        userId:
+          type: string
+          nullable: true
+        email:
+          type: string
+          nullable: true
+        roles:
+          type: array
+          items:
+            type: string
+        errorMessage:
+          type: string
+          nullable: true
+
+    DatabaseSchema:
+      type: object
+      required:
+        - databaseName
+        - tables
+      properties:
+        databaseName:
+          type: string
+          example: MyDatabase
+        tables:
+          type: array
+          items:
+            $ref: '#/components/schemas/TableInfo'
+
+    TableInfo:
+      type: object
+      required:
+        - name
+        - columns
+      properties:
+        name:
+          type: string
+          example: Users
+        schema:
+          type: string
+          default: dbo
+          example: dbo
+        columns:
+          type: array
+          items:
+            $ref: '#/components/schemas/ColumnInfo'
+        relationships:
+          type: array
+          items:
+            $ref: '#/components/schemas/RelationshipInfo'
+
+    ColumnInfo:
+      type: object
+      required:
+        - name
+        - dataType
+      properties:
+        name:
+          type: string
+          example: Id
+        dataType:
+          type: string
+          example: int
+        isNullable:
+          type: boolean
+          default: false
+        isPrimaryKey:
+          type: boolean
+          default: false
+        maxLength:
+          type: integer
+          default: 0
+
+    RelationshipInfo:
+      type: object
+      required:
+        - foreignKeyTable
+        - foreignKeyColumn
+        - primaryKeyTable
+        - primaryKeyColumn
+      properties:
+        foreignKeyTable:
+          type: string
+        foreignKeyColumn:
+          type: string
+        primaryKeyTable:
+          type: string
+        primaryKeyColumn:
+          type: string
+
+    GenerateSqlRequest:
+      type: object
+      required:
+        - naturalQuery
+        - schema
+      properties:
+        naturalQuery:
+          type: string
+          example: Show me all active users
+        schema:
+          $ref: '#/components/schemas/DatabaseSchema'
+        dbType:
+          type: string
+          default: sqlserver
+          example: sqlserver
+
+    GenerateSqlResponse:
+      type: object
+      properties:
+        sqlQuery:
+          type: string
+          example: SELECT * FROM Users WHERE IsActive = 1
+        isValid:
+          type: boolean
+        errorMessage:
+          type: string
+          nullable: true
+        metadata:
+          type: object
+          additionalProperties: true
+          nullable: true
+
+    InterpretResultsRequest:
+      type: object
+      required:
+        - originalQuery
+        - sqlQuery
+        - results
+      properties:
+        originalQuery:
+          type: string
+          example: How many users are active?
+        sqlQuery:
+          type: string
+          example: SELECT COUNT(*) FROM Users WHERE IsActive = 1
+        results:
+          type: object
+          additionalProperties: true
+          example:
+            count: 150
+        additionalContext:
+          type: string
+          nullable: true
+
+    InterpretResultsResponse:
+      type: object
+      properties:
+        interpretation:
+          $ref: '#/components/schemas/InterpretationData'
+        isValid:
+          type: boolean
+        errorMessage:
+          type: string
+          nullable: true
+
+    InterpretationData:
+      type: object
+      properties:
+        analysis:
+          type: string
+        answer:
+          type: string
+        summary:
+          type: string
+
+    WelcomeSuggestionsRequest:
+      type: object
+      properties:
+        schema:
+          $ref: '#/components/schemas/DatabaseSchema'
+        userId:
+          type: string
+          nullable: true
+
+    WelcomeSuggestionsResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        response:
+          type: string
+        suggestions:
+          type: array
+          items:
+            type: string
+
+    StartConversationRequest:
+      type: object
+      properties:
+        userId:
+          type: string
+          nullable: true
+        type:
+          type: integer
+          enum: [0, 1]
+          default: 0
+          description: 0 = Regular, 1 = Platform
+        platformType:
+          type: string
+          nullable: true
+          example: whatsapp
+        externalUserId:
+          type: string
+          nullable: true
+        suggestion:
+          type: string
+          nullable: true
+
+    StartConversationResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+        conversationId:
+          type: string
+        response:
+          type: string
+          nullable: true
+        messageHistory:
+          type: array
+          items:
+            $ref: '#/components/schemas/MessageHistoryItem'
+          nullable: true
+
+    SendChatMessageRequest:
+      type: object
+      required:
+        - conversationId
+        - message
+      properties:
+        conversationId:
+          type: string
+        message:
+          type: string
+        schema:
+          $ref: '#/components/schemas/DatabaseSchema'
+
+    SendChatMessageResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+        conversationId:
+          type: string
+        response:
+          type: string
+        messageHistory:
+          type: array
+          items:
+            $ref: '#/components/schemas/MessageHistoryItem'
+        links:
+          type: array
+          items:
+            $ref: '#/components/schemas/LinkInfo'
+          nullable: true
+        requiresQueryExecution:
+          type: boolean
+        queryResults:
+          $ref: '#/components/schemas/InterpretationData'
+
+    MessageHistoryItem:
+      type: object
+      properties:
+        role:
+          type: string
+          enum: [user, assistant]
+        content:
+          type: string
+        timestamp:
+          type: string
+          format: date-time
+        messageId:
+          type: string
+
+    SaveAppMetadataRequest:
+      type: object
+      properties:
+        appName:
+          type: string
+          nullable: true
+        description:
+          type: string
+          nullable: true
+        projectDetails:
+          type: object
+          additionalProperties: true
+          nullable: true
+        links:
+          type: array
+          items:
+            $ref: '#/components/schemas/LinkInfo'
+          nullable: true
+        schema:
+          $ref: '#/components/schemas/DatabaseSchema'
+
+    LinkInfo:
+      type: object
+      required:
+        - title
+        - url
+      properties:
+        title:
+          type: string
+        url:
+          type: string
+          format: uri
+        description:
+          type: string
+          nullable: true
+
