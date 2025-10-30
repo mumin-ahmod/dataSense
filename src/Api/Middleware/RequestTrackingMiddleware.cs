@@ -8,25 +8,19 @@ public class RequestTrackingMiddleware
 {
     private readonly RequestDelegate _next;
     private readonly ILogger<RequestTrackingMiddleware> _logger;
-    private readonly IKafkaService _kafkaService;
-    private readonly IUsageRequestRepository _usageRequestRepository;
-    private readonly ISubscriptionService _subscriptionService;
 
     public RequestTrackingMiddleware(
         RequestDelegate next, 
-        ILogger<RequestTrackingMiddleware> logger,
-        IKafkaService kafkaService,
-        IUsageRequestRepository usageRequestRepository,
-        ISubscriptionService subscriptionService)
+        ILogger<RequestTrackingMiddleware> logger)
     {
         _next = next;
         _logger = logger;
-        _kafkaService = kafkaService;
-        _usageRequestRepository = usageRequestRepository;
-        _subscriptionService = subscriptionService;
     }
 
-    public async Task InvokeAsync(HttpContext context)
+    public async Task InvokeAsync(HttpContext context, 
+        IKafkaService kafkaService,
+        IUsageRequestRepository usageRequestRepository,
+        ISubscriptionService subscriptionService)
     {
         var stopwatch = Stopwatch.StartNew();
         var userId = context.Items["UserId"]?.ToString() ?? "anonymous";
@@ -70,16 +64,16 @@ public class RequestTrackingMiddleware
                 try
                 {
                     // Save to database (append-only)
-                    await _usageRequestRepository.CreateAsync(usageRequest);
+                    await usageRequestRepository.CreateAsync(usageRequest);
 
                     // Send to Kafka for analytics (optional mirroring)
-                    await _kafkaService.ProduceAsync("datasense-usage-requests", 
+                    await kafkaService.ProduceAsync("datasense-usage-requests", 
                         System.Text.Json.JsonSerializer.Serialize(usageRequest));
 
                     // Increment subscription usage count
                     if (!string.IsNullOrEmpty(userId) && userId != "anonymous")
                     {
-                        await _subscriptionService.IncrementRequestCountAsync(userId);
+                        await subscriptionService.IncrementRequestCountAsync(userId);
                     }
                 }
                 catch (Exception ex)
@@ -113,7 +107,7 @@ public class RequestTrackingMiddleware
             {
                 try
                 {
-                    await _usageRequestRepository.CreateAsync(errorRequest);
+                    await usageRequestRepository.CreateAsync(errorRequest);
                 }
                 catch
                 {

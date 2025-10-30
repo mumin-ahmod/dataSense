@@ -8,25 +8,23 @@ public class ApiKeyAuthenticationMiddleware
 {
     private readonly RequestDelegate _next;
     private readonly ILogger<ApiKeyAuthenticationMiddleware> _logger;
-    private readonly ISubscriptionService _subscriptionService;
-    private readonly IProjectService _projectService;
 
     public ApiKeyAuthenticationMiddleware(
         RequestDelegate next, 
-        ILogger<ApiKeyAuthenticationMiddleware> logger,
-        ISubscriptionService subscriptionService,
-        IProjectService projectService)
+        ILogger<ApiKeyAuthenticationMiddleware> logger)
     {
         _next = next;
         _logger = logger;
-        _subscriptionService = subscriptionService;
-        _projectService = projectService;
     }
 
-    public async Task InvokeAsync(HttpContext context, IApiKeyService apiKeyService)
+    public async Task InvokeAsync(HttpContext context, 
+        IApiKeyService apiKeyService,
+        ISubscriptionService subscriptionService,
+        IProjectService projectService)
     {
-        // Skip authentication for health check, auth, and public endpoints
-        if (context.Request.Path.StartsWithSegments("/api/v1/backend/health") ||
+        // Skip authentication for health check, auth, swagger, and CORS preflight
+        if (string.Equals(context.Request.Method, "OPTIONS", StringComparison.OrdinalIgnoreCase) ||
+            context.Request.Path.StartsWithSegments("/api/v1/backend/health") ||
             context.Request.Path.StartsWithSegments("/api/v1/auth") ||
             context.Request.Path.StartsWithSegments("/swagger"))
         {
@@ -86,7 +84,7 @@ public class ApiKeyAuthenticationMiddleware
             if (result.Success && !string.IsNullOrEmpty(result.UserId))
             {
                 // Check subscription limit before allowing request
-                var hasLimit = await _subscriptionService.CheckRequestLimitAsync(result.UserId);
+                var hasLimit = await subscriptionService.CheckRequestLimitAsync(result.UserId);
                 if (!hasLimit)
                 {
                     context.Response.StatusCode = 429; // Too Many Requests
@@ -112,7 +110,7 @@ public class ApiKeyAuthenticationMiddleware
                 // If a ProjectKey was provided, validate and attach ProjectId
                 if (!string.IsNullOrEmpty(projectKey))
                 {
-                    var projectValidation = await _projectService.ValidateProjectKeyAsync(projectKey);
+                    var projectValidation = await projectService.ValidateProjectKeyAsync(projectKey);
                     if (!projectValidation.Success || string.IsNullOrEmpty(projectValidation.ProjectId))
                     {
                         context.Response.StatusCode = 401; // Unauthorized

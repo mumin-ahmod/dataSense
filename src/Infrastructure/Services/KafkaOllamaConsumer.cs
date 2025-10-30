@@ -46,8 +46,19 @@ public class KafkaOllamaConsumer : BackgroundService
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        _consumer.Subscribe(OllamaRequestsTopic);
-        _logger.LogInformation("Kafka consumer started, listening to topic: {Topic}", OllamaRequestsTopic);
+        // Delay consumer startup to not block Kestrel binding
+        await Task.Delay(2000, stoppingToken);
+
+        try
+        {
+            _consumer.Subscribe(OllamaRequestsTopic);
+            _logger.LogInformation("Kafka consumer started, listening to topic: {Topic}", OllamaRequestsTopic);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to subscribe to Kafka topic. Consumer will not process messages.");
+            return;
+        }
 
         try
         {
@@ -55,7 +66,14 @@ public class KafkaOllamaConsumer : BackgroundService
             {
                 try
                 {
-                    var result = _consumer.Consume(stoppingToken);
+                    // Use timeout to prevent indefinite blocking if Kafka is unavailable
+                    var result = _consumer.Consume(TimeSpan.FromSeconds(5));
+
+                    if (result == null)
+                    {
+                        // Timeout reached, no message received
+                        continue;
+                    }
 
                     if (result.IsPartitionEOF)
                     {
@@ -71,16 +89,30 @@ public class KafkaOllamaConsumer : BackgroundService
                 catch (ConsumeException ex)
                 {
                     _logger.LogError(ex, "Error consuming message from Kafka");
+                    // Wait before retrying to avoid tight error loops
+                    await Task.Delay(5000, stoppingToken);
                 }
                 catch (OperationCanceledException)
                 {
                     break;
                 }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Unexpected error in Kafka consumer");
+                    await Task.Delay(5000, stoppingToken);
+                }
             }
         }
         finally
         {
-            _consumer.Close();
+            try
+            {
+                _consumer.Close();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error closing Kafka consumer");
+            }
         }
     }
 

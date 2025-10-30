@@ -17,6 +17,21 @@ using System.Linq;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// Explicitly bind URLs to avoid macOS AirPlay conflicts and IPv6-only binding quirks
+var configuredUrls = builder.Configuration["Urls"];
+if (string.IsNullOrWhiteSpace(configuredUrls))
+{
+    configuredUrls = "http://0.0.0.0:5050;http://127.0.0.1:5050;http://localhost:5050";
+}
+builder.WebHost.UseUrls(configuredUrls);
+
+// Allow overriding DB connection string via environment variable
+var envDbConnection = Environment.GetEnvironmentVariable("DATASENSE_DB_CONNECTION");
+if (!string.IsNullOrWhiteSpace(envDbConnection))
+{
+    builder.Configuration["ConnectionStrings:DefaultConnection"] = envDbConnection;
+}
+
 // Add services to the container.
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
@@ -147,6 +162,13 @@ if (!string.IsNullOrWhiteSpace(preConfiguredUrls))
     Console.WriteLine($"  Listening on: {preConfiguredUrls}");
 }
 
+// Ensure database is created and migrations are applied before seeding/serving
+using (var scope = app.Services.CreateScope())
+{
+    var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+    await db.Database.MigrateAsync();
+}
+
 // Print which server and addresses the app is running on
 app.Lifetime.ApplicationStarted.Register(() =>
 {
@@ -167,8 +189,8 @@ app.Lifetime.ApplicationStarted.Register(() =>
         else
         {
             // Fallback to configured URLs if addresses are not yet populated
-            var configuredUrls = string.Join(", ", app.Urls);
-            Console.WriteLine($"✓ Hosting: {configuredUrls} | Environment: {environmentName}");
+            var configured = string.Join(", ", app.Urls);
+            Console.WriteLine($"✓ Hosting: {configured} | Environment: {environmentName}");
         }
     }
     catch
@@ -181,14 +203,18 @@ app.Lifetime.ApplicationStarted.Register(() =>
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
-    app.UseSwaggerUI();
+    app.UseSwaggerUI(c =>
+    {
+        c.SwaggerEndpoint("/swagger/v1/swagger.json", "DataSense API v1");
+        c.RoutePrefix = string.Empty;
+    });
 
     // Provide a helpful hint for Swagger location if URLs are known
     if (!string.IsNullOrWhiteSpace(preConfiguredUrls))
     {
         foreach (var baseUrl in preConfiguredUrls.Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
         {
-            Console.WriteLine($"  Swagger UI: {baseUrl.TrimEnd('/')}" + "/swagger");
+            Console.WriteLine($"  Swagger UI: {baseUrl.TrimEnd('/')}/swagger");
         }
     }
 }

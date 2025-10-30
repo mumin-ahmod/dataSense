@@ -25,6 +25,7 @@ public class AuthController : ControllerBase
     /// Register a new user account
     /// </summary>
     [HttpPost("register")]
+    [AllowAnonymous]
     public async Task<ActionResult<AuthResponse>> Register([FromBody] RegisterRequest request)
     {
         if (string.IsNullOrWhiteSpace(request.Email) || string.IsNullOrWhiteSpace(request.Password))
@@ -63,6 +64,7 @@ public class AuthController : ControllerBase
     /// Sign in with email and password
     /// </summary>
     [HttpPost("signin")]
+    [AllowAnonymous]
     public async Task<ActionResult<AuthResponse>> SignIn([FromBody] SignInRequest request)
     {
         if (string.IsNullOrWhiteSpace(request.Email) || string.IsNullOrWhiteSpace(request.Password))
@@ -101,6 +103,7 @@ public class AuthController : ControllerBase
     /// Refresh access token using refresh token
     /// </summary>
     [HttpPost("refresh")]
+    [AllowAnonymous]
     public async Task<ActionResult<AuthResponse>> RefreshToken([FromBody] RefreshTokenRequest request)
     {
         if (string.IsNullOrWhiteSpace(request.RefreshToken))
