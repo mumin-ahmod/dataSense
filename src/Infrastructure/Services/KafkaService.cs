@@ -1,6 +1,7 @@
 using System.Text;
 using System.Text.Json;
 using Confluent.Kafka;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using DataSenseAPI.Application.Abstractions;
 using DataSenseAPI.Domain.Models;
@@ -15,11 +16,16 @@ public class KafkaService : IKafkaService
     private const string PricingTopic = "datasense-pricing";
     private const string OllamaRequestsTopic = "datasense-ollama-requests";
 
-    public KafkaService(ILogger<KafkaService> logger)
+    public KafkaService(ILogger<KafkaService> logger, IConfiguration configuration)
     {
+        var bootstrapServers =
+            configuration["Kafka:BootstrapServers"]
+            ?? Environment.GetEnvironmentVariable("KAFKA_BOOTSTRAP_SERVERS")
+            ?? "localhost:9092";
+
         var config = new ProducerConfig
         {
-            BootstrapServers = Environment.GetEnvironmentVariable("KAFKA_BOOTSTRAP_SERVERS") ?? "localhost:9092",
+            BootstrapServers = bootstrapServers,
             Acks = Acks.All,
             EnableIdempotence = true
         };

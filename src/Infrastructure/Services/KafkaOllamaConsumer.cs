@@ -1,6 +1,7 @@
 using System.Text.Json;
 using Confluent.Kafka;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using DataSenseAPI.Application.Abstractions;
 using DataSenseAPI.Domain.Models;
@@ -24,7 +25,8 @@ public class KafkaOllamaConsumer : BackgroundService
         IConversationService conversationService,
         IAppMetadataService appMetadataService,
         IQueryDetectionService queryDetectionService,
-        ILogger<KafkaOllamaConsumer> logger)
+        ILogger<KafkaOllamaConsumer> logger,
+        IConfiguration configuration)
     {
         _ollamaService = ollamaService;
         _redisService = redisService;
@@ -33,9 +35,14 @@ public class KafkaOllamaConsumer : BackgroundService
         _queryDetectionService = queryDetectionService;
         _logger = logger;
 
+        var bootstrapServers =
+            configuration["Kafka:BootstrapServers"]
+            ?? Environment.GetEnvironmentVariable("KAFKA_BOOTSTRAP_SERVERS")
+            ?? "localhost:9092";
+
         var config = new ConsumerConfig
         {
-            BootstrapServers = Environment.GetEnvironmentVariable("KAFKA_BOOTSTRAP_SERVERS") ?? "localhost:9092",
+            BootstrapServers = bootstrapServers,
             GroupId = "datasense-ollama-consumer-group",
             AutoOffsetReset = AutoOffsetReset.Earliest,
             EnableAutoCommit = true,

@@ -22,12 +22,12 @@ public class SubscriptionPlanRepository : ISubscriptionPlanRepository
     {
         using var connection = _connectionFactory.CreateConnection();
         const string sql = @"
-            SELECT plan_id as Id, name as Name, description as Description, 
+            SELECT plan_id::text as Id, name as Name, description as Description, 
                    request_limit_per_month as MonthlyRequestLimit, monthly_price as MonthlyPrice, 
                    is_active as IsActive, created_at as CreatedAt, updated_at as UpdatedAt, 
                    features::jsonb as Features
             FROM subscription_plans
-            WHERE plan_id = @Id";
+            WHERE plan_id = @Id::uuid";
 
         var result = await connection.QueryFirstOrDefaultAsync<SubscriptionPlanDb>(sql, new { Id = id });
         return result?.ToDomain();
@@ -37,7 +37,7 @@ public class SubscriptionPlanRepository : ISubscriptionPlanRepository
     {
         using var connection = _connectionFactory.CreateConnection();
         const string sql = @"
-            SELECT plan_id as Id, name as Name, description as Description, 
+            SELECT plan_id::text as Id, name as Name, description as Description, 
                    request_limit_per_month as MonthlyRequestLimit, monthly_price as MonthlyPrice, 
                    is_active as IsActive, created_at as CreatedAt, updated_at as UpdatedAt, 
                    features::jsonb as Features
@@ -52,7 +52,7 @@ public class SubscriptionPlanRepository : ISubscriptionPlanRepository
     {
         using var connection = _connectionFactory.CreateConnection();
         const string sql = @"
-            SELECT plan_id as Id, name as Name, description as Description, 
+            SELECT plan_id::text as Id, name as Name, description as Description, 
                    request_limit_per_month as MonthlyRequestLimit, monthly_price as MonthlyPrice, 
                    is_active as IsActive, created_at as CreatedAt, updated_at as UpdatedAt, 
                    features::jsonb as Features
@@ -69,7 +69,7 @@ public class SubscriptionPlanRepository : ISubscriptionPlanRepository
         using var connection = _connectionFactory.CreateConnection();
         const string sql = @"
             INSERT INTO subscription_plans (plan_id, name, description, request_limit_per_month, monthly_price, is_active, created_at, updated_at, features)
-            VALUES (@Id, @Name, @Description, @MonthlyRequestLimit, @MonthlyPrice, @IsActive, @CreatedAt, @UpdatedAt, @Features::jsonb)
+            VALUES (@Id::uuid, @Name, @Description, @MonthlyRequestLimit, @MonthlyPrice, @IsActive, @CreatedAt, @UpdatedAt, @Features::jsonb)
             RETURNING *";
 
         var db = SubscriptionPlanDb.FromDomain(plan);
@@ -89,7 +89,7 @@ public class SubscriptionPlanRepository : ISubscriptionPlanRepository
                 is_active = @IsActive,
                 updated_at = @UpdatedAt,
                 features = @Features::jsonb
-            WHERE plan_id = @Id";
+            WHERE plan_id = @Id::uuid";
 
         var db = SubscriptionPlanDb.FromDomain(plan);
         var rowsAffected = await connection.ExecuteAsync(sql, db);
@@ -99,7 +99,7 @@ public class SubscriptionPlanRepository : ISubscriptionPlanRepository
     public async Task<bool> DeleteAsync(string id)
     {
         using var connection = _connectionFactory.CreateConnection();
-        const string sql = "UPDATE subscription_plans SET is_active = false WHERE plan_id = @Id";
+        const string sql = "UPDATE subscription_plans SET is_active = false WHERE plan_id = @Id::uuid";
         var rowsAffected = await connection.ExecuteAsync(sql, new { Id = id });
         return rowsAffected > 0;
     }
