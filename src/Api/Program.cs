@@ -70,8 +70,14 @@ builder.Services.AddScoped<IMenuService, MenuService>();
 builder.Services.AddScoped<IPermissionService, PermissionService>();
 builder.Services.AddScoped<IUserManagementService, UserManagementService>();
 
-// Kafka Consumer Background Service
+// Email services
+builder.Services.AddSingleton<IEmailQueue, EmailQueue>();
+builder.Services.AddScoped<IEmailSender, EmailSender>();
+
+// Background Services
 builder.Services.AddHostedService<KafkaOllamaConsumer>();
+builder.Services.AddHostedService<UserLockoutUnlockService>();
+builder.Services.AddHostedService<EmailSenderBackgroundService>();
 
 // Dapper Repositories
 builder.Services.AddSingleton<IDbConnectionFactory, DbConnectionFactory>();
@@ -103,6 +109,11 @@ builder.Services
 
         // User settings
         options.User.RequireUniqueEmail = true;
+
+        // Lockout settings
+        options.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromHours(1);
+        options.Lockout.MaxFailedAccessAttempts = 5;
+        options.Lockout.AllowedForNewUsers = true;
     })
     .AddEntityFrameworkStores<ApplicationDbContext>()
     .AddDefaultTokenProviders();

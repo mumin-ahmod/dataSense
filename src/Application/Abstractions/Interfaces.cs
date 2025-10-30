@@ -112,6 +112,8 @@ public interface IAuthService
     Task<AuthResult> SignInAsync(string email, string password);
     Task<AuthResult> RefreshTokenAsync(string refreshToken);
     Task<bool> RevokeTokenAsync(string refreshToken);
+    Task<AuthResult> ConfirmEmailAsync(string userId, string token);
+    Task<AuthResult> ResendConfirmationEmailAsync(string email);
 }
 
 public class AuthResult
@@ -124,6 +126,17 @@ public class AuthResult
     public string? Email { get; init; }
     public List<string> Roles { get; init; } = new();
     public string? ErrorMessage { get; init; }
+    public string? Message { get; init; }
+    
+    // Lockout information
+    public bool IsLockedOut { get; init; }
+    public int? AttemptsRemaining { get; init; }
+    public DateTime? LockoutEnd { get; init; }
+    public TimeSpan? LockoutDuration { get; init; }
+
+    // Email confirmation
+    public bool EmailConfirmationRequired { get; init; }
+    public bool ConfirmationEmailSent { get; init; }
 }
 
 // Subscription Service

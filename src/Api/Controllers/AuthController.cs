@@ -64,12 +64,88 @@ public class AuthController : ControllerBase
         return Ok(new AuthResponse
         {
             Success = true,
-            AccessToken = result.AccessToken,
-            RefreshToken = result.RefreshToken,
-            ExpiresAt = result.ExpiresAt,
             UserId = result.UserId,
             Email = result.Email,
-            Roles = result.Roles
+            Roles = result.Roles,
+            EmailConfirmationRequired = result.EmailConfirmationRequired,
+            ConfirmationEmailSent = result.ConfirmationEmailSent,
+            Message = result.Message ?? "Registration successful. Please confirm your email to activate your account."
+        });
+    }
+
+    /// <summary>
+    /// Confirm a user's email address
+    /// </summary>
+    [HttpGet("confirm-email")]
+    [AllowAnonymous]
+    public async Task<IActionResult> ConfirmEmail([FromQuery] string userId, [FromQuery] string token)
+    {
+        if (string.IsNullOrWhiteSpace(userId) || string.IsNullOrWhiteSpace(token))
+        {
+            return BadRequest(new AuthResponse
+            {
+                Success = false,
+                ErrorMessage = "UserId and token are required",
+                EmailConfirmationRequired = true
+            });
+        }
+
+        var result = await _authService.ConfirmEmailAsync(userId, token);
+
+        if (!result.Success)
+        {
+            return BadRequest(new AuthResponse
+            {
+                Success = false,
+                ErrorMessage = result.ErrorMessage,
+                EmailConfirmationRequired = result.EmailConfirmationRequired,
+                Message = result.Message
+            });
+        }
+
+        return Ok(new AuthResponse
+        {
+            Success = true,
+            UserId = result.UserId,
+            Email = result.Email,
+            Message = result.Message ?? "Email confirmed successfully. You can now log in."
+        });
+    }
+
+    /// <summary>
+    /// Resend confirmation email for a user who hasn't confirmed their email yet
+    /// </summary>
+    [HttpPost("resend-confirmation")]
+    [AllowAnonymous]
+    public async Task<IActionResult> ResendConfirmationEmail([FromBody] ResendConfirmationRequest request)
+    {
+        if (string.IsNullOrWhiteSpace(request.Email))
+        {
+            return BadRequest(new AuthResponse
+            {
+                Success = false,
+                ErrorMessage = "Email is required"
+            });
+        }
+
+        var result = await _authService.ResendConfirmationEmailAsync(request.Email);
+
+        if (!result.Success)
+        {
+            return BadRequest(new AuthResponse
+            {
+                Success = false,
+                ErrorMessage = result.ErrorMessage,
+                EmailConfirmationRequired = result.EmailConfirmationRequired,
+                Message = result.Message
+            });
+        }
+
+        return Ok(new AuthResponse
+        {
+            Success = true,
+            Message = result.Message ?? "Confirmation email has been resent.",
+            ConfirmationEmailSent = result.ConfirmationEmailSent
         });
     }
 
@@ -103,11 +179,35 @@ public class AuthController : ControllerBase
 
         if (!result.Success)
         {
-            return Unauthorized(new AuthResponse
+            var response = new AuthResponse
             {
                 Success = false,
-                ErrorMessage = result.ErrorMessage
-            });
+                ErrorMessage = result.ErrorMessage,
+                IsLockedOut = result.IsLockedOut,
+                AttemptsRemaining = result.AttemptsRemaining,
+                LockoutEnd = result.LockoutEnd,
+                EmailConfirmationRequired = result.EmailConfirmationRequired,
+                ConfirmationEmailSent = result.ConfirmationEmailSent,
+                Message = result.Message
+            };
+
+            // Add human-readable lockout time remaining
+            if (result.LockoutEnd.HasValue)
+            {
+                var timeRemaining = result.LockoutEnd.Value - DateTime.UtcNow;
+                if (timeRemaining.TotalMinutes > 0)
+                {
+                    response.LockoutTimeRemaining = $"{timeRemaining.TotalMinutes:F0} minutes";
+                }
+            }
+
+            // Return 423 Locked for locked out accounts, 401 Unauthorized for invalid credentials
+            if (result.EmailConfirmationRequired && !result.IsLockedOut)
+            {
+                return StatusCode(403, response);
+            }
+
+            return result.IsLockedOut ? StatusCode(423, response) : Unauthorized(response);
         }
 
         // Get menu permissions for user
@@ -145,7 +245,8 @@ public class AuthController : ControllerBase
             },
             UserId = result.UserId,
             Email = result.Email,
-            Roles = result.Roles
+            Roles = result.Roles,
+            Message = result.Message
         });
     }
 

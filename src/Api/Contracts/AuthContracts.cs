@@ -32,6 +32,17 @@ public class AuthResponse
     public string? Email { get; set; }
     public List<string> Roles { get; set; } = new();
     public string? ErrorMessage { get; set; }
+    public string? Message { get; set; }
+    
+    // Lockout information
+    public bool IsLockedOut { get; set; }
+    public int? AttemptsRemaining { get; set; }
+    public DateTime? LockoutEnd { get; set; }
+    public string? LockoutTimeRemaining { get; set; }
+
+    // Email confirmation
+    public bool EmailConfirmationRequired { get; set; }
+    public bool ConfirmationEmailSent { get; set; }
 }
 
 public class UserInfo
@@ -67,5 +78,10 @@ public class UpdateProfileRequest
     public string? FirstName { get; set; }
     public string? LastName { get; set; }
     public string? PhoneNumber { get; set; }
+}
+
+public class ResendConfirmationRequest
+{
+    public string Email { get; set; } = string.Empty;
 }
 
