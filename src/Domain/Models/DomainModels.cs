@@ -208,4 +208,34 @@ public class Project
     public string ProjectKeyHash { get; set; } = string.Empty; // hashed classification key
 }
 
+// Menus and Role-based permissions
+public class Menu
+{
+    public int Id { get; set; }
+    public string Name { get; set; } = string.Empty;
+    public string DisplayName { get; set; } = string.Empty;
+    public string? Description { get; set; }
+    public string? Icon { get; set; }
+    public string? Url { get; set; }
+    public int? ParentId { get; set; }
+    public int Order { get; set; }
+    public bool IsActive { get; set; } = true;
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public DateTime? UpdatedAt { get; set; }
+    public string CreatedBy { get; set; } = string.Empty;
+}
+
+public class RolePermission
+{
+    public int Id { get; set; }
+    public string RoleId { get; set; } = string.Empty;
+    public int MenuId { get; set; }
+    public bool CanView { get; set; }
+    public bool CanCreate { get; set; }
+    public bool CanEdit { get; set; }
+    public bool CanDelete { get; set; }
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public string CreatedBy { get; set; } = string.Empty;
+}
+
 

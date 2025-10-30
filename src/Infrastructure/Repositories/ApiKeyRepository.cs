@@ -22,11 +22,11 @@ public class ApiKeyRepository : IApiKeyRepository
     {
         using var connection = _connectionFactory.CreateConnection();
         const string sql = @"
-            SELECT api_key_id as Id, user_id as UserId, key_hash as KeyHash, name as Name, 
+            SELECT api_key_id::text as Id, user_id as UserId, key_hash as KeyHash, name as Name, 
                    is_active as IsActive, created_at as CreatedAt, last_used_at as ExpiresAt, 
-                   user_metadata::jsonb as UserMetadata, subscription_plan_id as SubscriptionPlanId
+                   user_metadata::text as UserMetadata, subscription_plan_id::text as SubscriptionPlanId
             FROM api_keys
-            WHERE api_key_id = @Id";
+            WHERE api_key_id = @Id::uuid";
 
         var result = await connection.QueryFirstOrDefaultAsync<ApiKeyDb>(sql, new { Id = id });
         return result?.ToDomain();
@@ -36,9 +36,9 @@ public class ApiKeyRepository : IApiKeyRepository
     {
         using var connection = _connectionFactory.CreateConnection();
         const string sql = @"
-            SELECT api_key_id as Id, user_id as UserId, key_hash as KeyHash, name as Name, 
+            SELECT api_key_id::text as Id, user_id as UserId, key_hash as KeyHash, name as Name, 
                    is_active as IsActive, created_at as CreatedAt, last_used_at as ExpiresAt, 
-                   user_metadata::jsonb as UserMetadata, subscription_plan_id as SubscriptionPlanId
+                   user_metadata::text as UserMetadata, subscription_plan_id::text as SubscriptionPlanId
             FROM api_keys
             WHERE key_hash = @KeyHash";
 
@@ -51,8 +51,8 @@ public class ApiKeyRepository : IApiKeyRepository
         using var connection = _connectionFactory.CreateConnection();
         const string sql = @"
             INSERT INTO api_keys (api_key_id, user_id, key_hash, name, is_active, created_at, last_used_at, user_metadata, subscription_plan_id)
-            VALUES (@Id, @UserId, @KeyHash, @Name, @IsActive, @CreatedAt, @ExpiresAt, @UserMetadata::jsonb, @SubscriptionPlanId)
-            RETURNING *";
+            VALUES (@Id::uuid, @UserId, @KeyHash, @Name, @IsActive, @CreatedAt, @ExpiresAt, @UserMetadata::jsonb, @SubscriptionPlanId::uuid)
+            RETURNING api_key_id::text";
 
         var db = ApiKeyDb.FromDomain(apiKey);
         await connection.ExecuteAsync(sql, db);
@@ -67,8 +67,8 @@ public class ApiKeyRepository : IApiKeyRepository
             SET is_active = @IsActive,
                 last_used_at = @ExpiresAt,
                 user_metadata = @UserMetadata::jsonb,
-                subscription_plan_id = @SubscriptionPlanId
-            WHERE api_key_id = @Id";
+                subscription_plan_id = @SubscriptionPlanId::uuid
+            WHERE api_key_id = @Id::uuid";
 
         var db = ApiKeyDb.FromDomain(apiKey);
         var rowsAffected = await connection.ExecuteAsync(sql, db);
@@ -78,7 +78,7 @@ public class ApiKeyRepository : IApiKeyRepository
     public async Task<bool> DeleteAsync(string id)
     {
         using var connection = _connectionFactory.CreateConnection();
-        const string sql = "DELETE FROM api_keys WHERE api_key_id = @Id";
+        const string sql = "DELETE FROM api_keys WHERE api_key_id = @Id::uuid";
         var rowsAffected = await connection.ExecuteAsync(sql, new { Id = id });
         return rowsAffected > 0;
     }
@@ -87,9 +87,9 @@ public class ApiKeyRepository : IApiKeyRepository
     {
         using var connection = _connectionFactory.CreateConnection();
         const string sql = @"
-            SELECT api_key_id as Id, user_id as UserId, key_hash as KeyHash, name as Name, 
+            SELECT api_key_id::text as Id, user_id as UserId, key_hash as KeyHash, name as Name, 
                    is_active as IsActive, created_at as CreatedAt, last_used_at as ExpiresAt, 
-                   user_metadata::jsonb as UserMetadata, subscription_plan_id as SubscriptionPlanId
+                   user_metadata::text as UserMetadata, subscription_plan_id::text as SubscriptionPlanId
             FROM api_keys
             WHERE user_id = @UserId
             ORDER BY created_at DESC";

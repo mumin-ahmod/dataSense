@@ -22,8 +22,8 @@ public class UsageRequestRepository : IUsageRequestRepository
     {
         using var connection = _connectionFactory.CreateConnection();
         const string sql = @"
-            INSERT INTO UsageRequests (Id, UserId, ApiKeyId, Endpoint, RequestType, Timestamp, StatusCode, ProcessingTimeMs, Metadata)
-            VALUES (@Id, @UserId, @ApiKeyId, @Endpoint, @RequestType, @Timestamp, @StatusCode, @ProcessingTimeMs, @Metadata::jsonb)";
+            INSERT INTO usage_requests (request_id, user_id, api_key_id, endpoint, request_type, timestamp, status_code, processing_time_ms, metadata)
+            VALUES (@Id::uuid, @UserId, @ApiKeyId::uuid, @Endpoint, @RequestType, @Timestamp, @StatusCode, @ProcessingTimeMs, @Metadata::jsonb)";
 
         var db = UsageRequestDb.FromDomain(request);
         await connection.ExecuteAsync(sql, db);
@@ -34,10 +34,11 @@ public class UsageRequestRepository : IUsageRequestRepository
     {
         using var connection = _connectionFactory.CreateConnection();
         const string sql = @"
-            SELECT Id, UserId, ApiKeyId, Endpoint, RequestType, Timestamp, StatusCode, ProcessingTimeMs, 
-                   Metadata::jsonb as Metadata
-            FROM UsageRequests
-            WHERE Id = @Id";
+            SELECT request_id as Id, user_id as UserId, api_key_id as ApiKeyId, endpoint as Endpoint, 
+                   request_type as RequestType, timestamp as Timestamp, status_code as StatusCode, 
+                   processing_time_ms as ProcessingTimeMs, metadata::text as Metadata
+            FROM usage_requests
+            WHERE request_id = @Id::uuid";
 
         var result = await connection.QueryFirstOrDefaultAsync<UsageRequestDb>(sql, new { Id = id });
         return result?.ToDomain();
@@ -47,24 +48,25 @@ public class UsageRequestRepository : IUsageRequestRepository
     {
         using var connection = _connectionFactory.CreateConnection();
         var sql = @"
-            SELECT Id, UserId, ApiKeyId, Endpoint, RequestType, Timestamp, StatusCode, ProcessingTimeMs, 
-                   Metadata::jsonb as Metadata
-            FROM UsageRequests
-            WHERE UserId = @UserId";
+            SELECT request_id as Id, user_id as UserId, api_key_id as ApiKeyId, endpoint as Endpoint, 
+                   request_type as RequestType, timestamp as Timestamp, status_code as StatusCode, 
+                   processing_time_ms as ProcessingTimeMs, metadata::text as Metadata
+            FROM usage_requests
+            WHERE user_id = @UserId";
 
         var parameters = new { UserId = userId, FromDate = fromDate, ToDate = toDate, Limit = limit };
 
         if (fromDate.HasValue)
         {
-            sql += " AND Timestamp >= @FromDate";
+            sql += " AND timestamp >= @FromDate";
         }
 
         if (toDate.HasValue)
         {
-            sql += " AND Timestamp <= @ToDate";
+            sql += " AND timestamp <= @ToDate";
         }
 
-        sql += " ORDER BY Timestamp DESC";
+        sql += " ORDER BY timestamp DESC";
 
         if (limit.HasValue)
         {
@@ -79,24 +81,25 @@ public class UsageRequestRepository : IUsageRequestRepository
     {
         using var connection = _connectionFactory.CreateConnection();
         var sql = @"
-            SELECT Id, UserId, ApiKeyId, Endpoint, RequestType, Timestamp, StatusCode, ProcessingTimeMs, 
-                   Metadata::jsonb as Metadata
-            FROM UsageRequests
-            WHERE ApiKeyId = @ApiKeyId";
+            SELECT request_id as Id, user_id as UserId, api_key_id as ApiKeyId, endpoint as Endpoint, 
+                   request_type as RequestType, timestamp as Timestamp, status_code as StatusCode, 
+                   processing_time_ms as ProcessingTimeMs, metadata::text as Metadata
+            FROM usage_requests
+            WHERE api_key_id = @ApiKeyId::uuid";
 
         var parameters = new { ApiKeyId = apiKeyId, FromDate = fromDate, ToDate = toDate };
 
         if (fromDate.HasValue)
         {
-            sql += " AND Timestamp >= @FromDate";
+            sql += " AND timestamp >= @FromDate";
         }
 
         if (toDate.HasValue)
         {
-            sql += " AND Timestamp <= @ToDate";
+            sql += " AND timestamp <= @ToDate";
         }
 
-        sql += " ORDER BY Timestamp DESC";
+        sql += " ORDER BY timestamp DESC";
 
         var results = await connection.QueryAsync<UsageRequestDb>(sql, parameters);
         return results.Select(r => r.ToDomain()).ToList();
@@ -105,18 +108,18 @@ public class UsageRequestRepository : IUsageRequestRepository
     public async Task<int> GetCountByUserIdAsync(string userId, DateTime? fromDate = null, DateTime? toDate = null)
     {
         using var connection = _connectionFactory.CreateConnection();
-        var sql = "SELECT COUNT(*) FROM UsageRequests WHERE UserId = @UserId";
+        var sql = "SELECT COUNT(*) FROM usage_requests WHERE user_id = @UserId";
 
         var parameters = new { UserId = userId, FromDate = fromDate, ToDate = toDate };
 
         if (fromDate.HasValue)
         {
-            sql += " AND Timestamp >= @FromDate";
+            sql += " AND timestamp >= @FromDate";
         }
 
         if (toDate.HasValue)
         {
-            sql += " AND Timestamp <= @ToDate";
+            sql += " AND timestamp <= @ToDate";
         }
 
         return await connection.QueryFirstOrDefaultAsync<int>(sql, parameters);
@@ -125,18 +128,18 @@ public class UsageRequestRepository : IUsageRequestRepository
     public async Task<int> GetCountByApiKeyIdAsync(string apiKeyId, DateTime? fromDate = null, DateTime? toDate = null)
     {
         using var connection = _connectionFactory.CreateConnection();
-        var sql = "SELECT COUNT(*) FROM UsageRequests WHERE ApiKeyId = @ApiKeyId";
+        var sql = "SELECT COUNT(*) FROM usage_requests WHERE api_key_id = @ApiKeyId::uuid";
 
         var parameters = new { ApiKeyId = apiKeyId, FromDate = fromDate, ToDate = toDate };
 
         if (fromDate.HasValue)
         {
-            sql += " AND Timestamp >= @FromDate";
+            sql += " AND timestamp >= @FromDate";
         }
 
         if (toDate.HasValue)
         {
-            sql += " AND Timestamp <= @ToDate";
+            sql += " AND timestamp <= @ToDate";
         }
 
         return await connection.QueryFirstOrDefaultAsync<int>(sql, parameters);

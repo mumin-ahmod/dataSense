@@ -92,3 +92,28 @@ public interface IRefreshTokenRepository
     Task<bool> DeleteExpiredTokensAsync();
 }
 
+public interface IMenuRepository
+{
+    Task<Menu?> GetByIdAsync(int id);
+    Task<List<Menu>> GetAllAsync();
+    Task<List<Menu>> GetActiveMenusAsync();
+    Task<Menu> CreateAsync(Menu menu);
+    Task<bool> UpdateAsync(Menu menu);
+    Task<bool> DeleteAsync(int id);
+    Task<List<Menu>> GetByParentIdAsync(int? parentId);
+}
+
+public interface IRolePermissionRepository
+{
+    Task<RolePermission?> GetByIdAsync(int id);
+    Task<List<RolePermission>> GetAllAsync();
+    Task<List<RolePermission>> GetByRoleIdAsync(string roleId);
+    Task<List<RolePermission>> GetByMenuIdAsync(int menuId);
+    Task<RolePermission?> GetByRoleAndMenuAsync(string roleId, int menuId);
+    Task<RolePermission> CreateAsync(RolePermission permission);
+    Task<bool> UpdateAsync(RolePermission permission);
+    Task<bool> DeleteAsync(int id);
+    Task<bool> DeleteByRoleIdAsync(string roleId);
+    Task<bool> DeleteByMenuIdAsync(int menuId);
+}
+

@@ -22,10 +22,10 @@ public class ChatMessageRepository : IChatMessageRepository
     {
         using var connection = _connectionFactory.CreateConnection();
         const string sql = @"
-            SELECT message_id as Id, conversation_id as ConversationId, role as Role, content as Content, 
-                   created_at as Timestamp, metadata::jsonb as Metadata
+            SELECT message_id::text as Id, conversation_id::text as ConversationId, role as Role, content as Content, 
+                   created_at as Timestamp, metadata::text as Metadata
             FROM messages
-            WHERE message_id = @Id";
+            WHERE message_id = @Id::uuid";
 
         var result = await connection.QueryFirstOrDefaultAsync<ChatMessageDb>(sql, new { Id = id });
         return result?.ToDomain();
@@ -36,8 +36,8 @@ public class ChatMessageRepository : IChatMessageRepository
         using var connection = _connectionFactory.CreateConnection();
         const string sql = @"
             INSERT INTO messages (message_id, conversation_id, role, content, created_at, metadata)
-            VALUES (@Id, @ConversationId, @Role, @Content, @Timestamp, @Metadata::jsonb)
-            RETURNING *";
+            VALUES (@Id::uuid, @ConversationId::uuid, @Role, @Content, @Timestamp, @Metadata::jsonb)
+            RETURNING message_id::text";
 
         var db = ChatMessageDb.FromDomain(message);
         await connection.ExecuteAsync(sql, db);
@@ -51,7 +51,7 @@ public class ChatMessageRepository : IChatMessageRepository
             UPDATE messages
             SET content = @Content,
                 metadata = @Metadata::jsonb
-            WHERE message_id = @Id";
+            WHERE message_id = @Id::uuid";
 
         var db = ChatMessageDb.FromDomain(message);
         var rowsAffected = await connection.ExecuteAsync(sql, db);
@@ -61,7 +61,7 @@ public class ChatMessageRepository : IChatMessageRepository
     public async Task<bool> DeleteAsync(string id)
     {
         using var connection = _connectionFactory.CreateConnection();
-        const string sql = "DELETE FROM messages WHERE message_id = @Id";
+        const string sql = "DELETE FROM messages WHERE message_id = @Id::uuid";
         var rowsAffected = await connection.ExecuteAsync(sql, new { Id = id });
         return rowsAffected > 0;
     }
@@ -70,10 +70,10 @@ public class ChatMessageRepository : IChatMessageRepository
     {
         using var connection = _connectionFactory.CreateConnection();
         var sql = @"
-            SELECT message_id as Id, conversation_id as ConversationId, role as Role, content as Content, 
-                   created_at as Timestamp, metadata::jsonb as Metadata
+            SELECT message_id::text as Id, conversation_id::text as ConversationId, role as Role, content as Content, 
+                   created_at as Timestamp, metadata::text as Metadata
             FROM messages
-            WHERE conversation_id = @ConversationId
+            WHERE conversation_id = @ConversationId::uuid
             ORDER BY created_at ASC";
 
         if (limit.HasValue)
@@ -89,10 +89,10 @@ public class ChatMessageRepository : IChatMessageRepository
     {
         using var connection = _connectionFactory.CreateConnection();
         const string sql = @"
-            SELECT message_id as Id, conversation_id as ConversationId, role as Role, content as Content, 
-                   created_at as Timestamp, metadata::jsonb as Metadata
+            SELECT message_id::text as Id, conversation_id::text as ConversationId, role as Role, content as Content, 
+                   created_at as Timestamp, metadata::text as Metadata
             FROM messages
-            WHERE conversation_id = @ConversationId
+            WHERE conversation_id = @ConversationId::uuid
             ORDER BY created_at DESC
             LIMIT @Count";
 

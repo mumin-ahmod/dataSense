@@ -66,6 +66,9 @@ builder.Services.AddScoped<IConversationService, ConversationService>();
 builder.Services.AddScoped<IQueryDetectionService, QueryDetectionService>();
 builder.Services.AddScoped<IAppMetadataService, AppMetadataService>();
 builder.Services.AddScoped<IProjectService, ProjectService>();
+builder.Services.AddScoped<IMenuService, MenuService>();
+builder.Services.AddScoped<IPermissionService, PermissionService>();
+builder.Services.AddScoped<IUserManagementService, UserManagementService>();
 
 // Kafka Consumer Background Service
 builder.Services.AddHostedService<KafkaOllamaConsumer>();
@@ -81,6 +84,8 @@ builder.Services.AddScoped<IRefreshTokenRepository, RefreshTokenRepository>();
 builder.Services.AddScoped<ISubscriptionPlanRepository, SubscriptionPlanRepository>();
 builder.Services.AddScoped<IUserSubscriptionRepository, UserSubscriptionRepository>();
 builder.Services.AddScoped<IUsageRequestRepository, UsageRequestRepository>();
+builder.Services.AddScoped<IMenuRepository, MenuRepository>();
+builder.Services.AddScoped<IRolePermissionRepository, RolePermissionRepository>();
 
 // Database and Identity (for authentication only)
 builder.Services.AddDbContext<ApplicationDbContext>(options =>

@@ -139,3 +139,80 @@ public interface ISubscriptionService
     Task ResetMonthlyUsageAsync(string userId);
 }
 
+// Menu and Permission Services
+public interface IMenuService
+{
+    Task<Menu?> GetByIdAsync(int id);
+    Task<List<Menu>> GetAllAsync();
+    Task<List<Menu>> GetActiveMenusAsync();
+    Task<Menu> CreateAsync(Menu menu, string createdBy);
+    Task<bool> UpdateAsync(Menu menu);
+    Task<bool> DeleteAsync(int id);
+}
+
+public interface IPermissionService
+{
+    Task<List<RolePermission>> GetAllPermissionsAsync();
+    Task<List<RolePermission>> GetPermissionsByRoleAsync(string roleId);
+    Task<List<MenuPermissionDto>> GetMenuPermissionsForUserAsync(string userId);
+    Task<bool> SetRolePermissionAsync(RolePermission permission, string createdBy);
+    Task<bool> SetRolePermissionsBulkAsync(string roleId, List<RolePermission> permissions, string createdBy);
+}
+
+public class MenuPermissionDto
+{
+    public int MenuId { get; set; }
+    public string MenuName { get; set; } = string.Empty;
+    public string DisplayName { get; set; } = string.Empty;
+    public string? Icon { get; set; }
+    public string? Url { get; set; }
+    public int? ParentId { get; set; }
+    public int Order { get; set; }
+    public bool CanView { get; set; }
+    public bool CanCreate { get; set; }
+    public bool CanEdit { get; set; }
+    public bool CanDelete { get; set; }
+}
+
+public interface IUserManagementService
+{
+    Task<UserSearchResult> SearchUsersAsync(string? searchTerm, int page, int pageSize, string? forPage, string? currentUserRoles);
+    Task<UserDetailsDto?> GetUserDetailsAsync(string userId);
+    Task<PublicUserDto?> GetPublicUserInfoAsync(string userId);
+    Task<bool> ChangeUserRoleAsync(string userId, string roleId, string performedBy);
+}
+
+public class UserSearchResult
+{
+    public List<UserDto> Users { get; set; } = new();
+    public int TotalCount { get; set; }
+    public int PageNumber { get; set; }
+    public int PageSize { get; set; }
+    public int TotalPages { get; set; }
+}
+
+public class UserDto
+{
+    public string Id { get; set; } = string.Empty;
+    public string Email { get; set; } = string.Empty;
+    public string? FirstName { get; set; }
+    public string? LastName { get; set; }
+    public List<string> Roles { get; set; } = new();
+    public bool IsActive { get; set; }
+    public DateTime CreatedAt { get; set; }
+}
+
+public class UserDetailsDto : UserDto
+{
+    public List<string> Permissions { get; set; } = new();
+}
+
+public class PublicUserDto
+{
+    public string Id { get; set; } = string.Empty;
+    public string Email { get; set; } = string.Empty;
+    public string? FirstName { get; set; }
+    public string? LastName { get; set; }
+    public string? PhoneNumber { get; set; }
+}
+

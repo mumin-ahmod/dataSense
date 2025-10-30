@@ -22,6 +22,8 @@ namespace DataSenseAPI.Infrastructure.AppDb
         public DbSet<UsageRequest> UsageRequests => Set<UsageRequest>();
         public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
         public DbSet<Project> Projects => Set<Project>();
+        public DbSet<Menu> Menus => Set<Menu>();
+        public DbSet<RolePermission> RolePermissions => Set<RolePermission>();
 
         protected override void OnModelCreating(ModelBuilder builder)
         {
@@ -178,6 +180,44 @@ namespace DataSenseAPI.Infrastructure.AppDb
                 entity.HasIndex(e => e.UserId).HasDatabaseName("idx_projects_user_id");
                 entity.HasIndex(e => e.ProjectKeyHash).HasDatabaseName("idx_projects_project_key_hash");
                 entity.HasIndex(e => new { e.UserId, e.IsActive }).HasDatabaseName("idx_projects_user_active");
+            });
+
+            // Configure Menu - NEW table
+            builder.Entity<Menu>(entity =>
+            {
+                entity.ToTable("menus");
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Id).HasColumnName("id");
+                entity.Property(e => e.Name).HasColumnName("name");
+                entity.Property(e => e.DisplayName).HasColumnName("display_name");
+                entity.Property(e => e.Description).HasColumnName("description");
+                entity.Property(e => e.Icon).HasColumnName("icon");
+                entity.Property(e => e.Url).HasColumnName("url");
+                entity.Property(e => e.ParentId).HasColumnName("parent_id");
+                entity.Property(e => e.Order).HasColumnName("order_index");
+                entity.Property(e => e.IsActive).HasColumnName("is_active");
+                entity.Property(e => e.CreatedAt).HasColumnName("created_at");
+                entity.Property(e => e.UpdatedAt).HasColumnName("updated_at");
+                entity.Property(e => e.CreatedBy).HasColumnName("created_by");
+                entity.HasIndex(e => e.ParentId).HasDatabaseName("idx_menus_parent_id");
+            });
+
+            // Configure RolePermission - NEW table
+            builder.Entity<RolePermission>(entity =>
+            {
+                entity.ToTable("role_permissions");
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Id).HasColumnName("id");
+                entity.Property(e => e.RoleId).HasColumnName("role_id");
+                entity.Property(e => e.MenuId).HasColumnName("menu_id");
+                entity.Property(e => e.CanView).HasColumnName("can_view");
+                entity.Property(e => e.CanCreate).HasColumnName("can_create");
+                entity.Property(e => e.CanEdit).HasColumnName("can_edit");
+                entity.Property(e => e.CanDelete).HasColumnName("can_delete");
+                entity.Property(e => e.CreatedAt).HasColumnName("created_at");
+                entity.Property(e => e.CreatedBy).HasColumnName("created_by");
+                entity.HasIndex(e => e.RoleId).HasDatabaseName("idx_role_permissions_role_id");
+                entity.HasIndex(e => e.MenuId).HasDatabaseName("idx_role_permissions_menu_id");
             });
         }
     }
