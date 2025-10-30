@@ -10,17 +10,20 @@ public class PermissionService : IPermissionService
     private readonly IRolePermissionRepository _permissionRepository;
     private readonly IMenuRepository _menuRepository;
     private readonly UserManager<IdentityUser> _userManager;
+    private readonly RoleManager<IdentityRole> _roleManager;
     private readonly ILogger<PermissionService> _logger;
 
     public PermissionService(
         IRolePermissionRepository permissionRepository,
         IMenuRepository menuRepository,
         UserManager<IdentityUser> userManager,
+        RoleManager<IdentityRole> roleManager,
         ILogger<PermissionService> logger)
     {
         _permissionRepository = permissionRepository;
         _menuRepository = menuRepository;
         _userManager = userManager;
+        _roleManager = roleManager;
         _logger = logger;
     }
 
@@ -39,25 +42,55 @@ public class PermissionService : IPermissionService
         var user = await _userManager.FindByIdAsync(userId);
         if (user == null)
         {
+            _logger.LogWarning("User not found: {UserId}", userId);
             return new List<MenuPermissionDto>();
         }
 
-        var roles = await _userManager.GetRolesAsync(user);
-        if (roles.Count == 0)
+        var roleNames = await _userManager.GetRolesAsync(user);
+        if (roleNames.Count == 0)
         {
+            _logger.LogWarning("User {UserId} has no roles assigned", userId);
+            return new List<MenuPermissionDto>();
+        }
+
+        _logger.LogInformation("User {UserId} has roles: {Roles}", userId, string.Join(", ", roleNames));
+
+        // Convert role names to role IDs
+        var roleIds = new List<string>();
+        foreach (var roleName in roleNames)
+        {
+            var role = await _roleManager.FindByNameAsync(roleName);
+            if (role != null)
+            {
+                roleIds.Add(role.Id);
+                _logger.LogInformation("Resolved role '{RoleName}' to ID: {RoleId}", roleName, role.Id);
+            }
+            else
+            {
+                _logger.LogWarning("Role '{RoleName}' not found in AspNetRoles", roleName);
+            }
+        }
+
+        if (roleIds.Count == 0)
+        {
+            _logger.LogWarning("Could not resolve any role IDs for user {UserId}", userId);
             return new List<MenuPermissionDto>();
         }
 
         // Get all active menus
         var menus = await _menuRepository.GetActiveMenusAsync();
+        _logger.LogInformation("Found {Count} active menus", menus.Count);
         
         // Get all permissions for user's roles
         var allPermissions = new List<RolePermission>();
-        foreach (var role in roles)
+        foreach (var roleId in roleIds)
         {
-            var rolePermissions = await _permissionRepository.GetByRoleIdAsync(role);
+            var rolePermissions = await _permissionRepository.GetByRoleIdAsync(roleId);
+            _logger.LogInformation("Role {RoleId} has {Count} permissions", roleId, rolePermissions.Count);
             allPermissions.AddRange(rolePermissions);
         }
+
+        _logger.LogInformation("Total permissions fetched: {Count}", allPermissions.Count);
 
         // Group by menu and aggregate permissions (any role with permission = user has permission)
         var menuPermissions = menus.Select(menu =>
@@ -81,6 +114,8 @@ public class PermissionService : IPermissionService
         .Where(mp => mp.CanView) // Only return menus the user can view
         .OrderBy(mp => mp.Order)
         .ToList();
+
+        _logger.LogInformation("Returning {Count} menu permissions with view access", menuPermissions.Count);
 
         return menuPermissions;
     }
