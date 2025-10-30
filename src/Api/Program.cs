@@ -157,12 +157,51 @@ builder.Services.AddAuthentication(options =>
 // Configure CORS
 builder.Services.AddCors(options =>
 {
-    options.AddPolicy("AllowAll", policy =>
+    if (builder.Environment.IsDevelopment())
     {
-        policy.AllowAnyOrigin()
-              .AllowAnyMethod()
-              .AllowAnyHeader();
-    });
+        // More permissive CORS for development
+        options.AddPolicy("AllowAll", policy =>
+        {
+            policy.SetIsOriginAllowed(origin => 
+                {
+                    if (string.IsNullOrEmpty(origin))
+                        return false;
+                    
+                    try
+                    {
+                        // Allow all localhost, 127.0.0.1, and 0.0.0.0 origins in development
+                        var uri = new Uri(origin);
+                        return uri.Host == "localhost" 
+                            || uri.Host == "127.0.0.1" 
+                            || uri.Host == "0.0.0.0"
+                            || uri.Host == "[::1]"; // IPv6 localhost
+                    }
+                    catch
+                    {
+                        return false;
+                    }
+                })
+                  .AllowAnyMethod()
+                  .AllowAnyHeader()
+                  .AllowCredentials()
+                  .WithExposedHeaders("*");
+        });
+    }
+    else
+    {
+        // Restricted CORS for production
+        options.AddPolicy("AllowAll", policy =>
+        {
+            policy.WithOrigins(
+                      "http://localhost:4200",
+                      "http://localhost:5050",
+                      "http://127.0.0.1:4200",
+                      "http://127.0.0.1:5050")
+                  .AllowAnyMethod()
+                  .AllowAnyHeader()
+                  .AllowCredentials();
+        });
+    }
 });
 
 var app = builder.Build();
@@ -236,6 +275,7 @@ if (app.Environment.IsDevelopment())
 }
 
 // Middleware order is important
+app.UseRouting();
 app.UseCors("AllowAll");
 
 // Seed roles and subscription plans

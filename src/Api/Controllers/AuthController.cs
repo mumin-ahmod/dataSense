@@ -219,7 +219,6 @@ public class AuthController : ControllerBase
         {
             Success = true,
             Token = result.AccessToken,
-            AccessToken = result.AccessToken,
             RefreshToken = result.RefreshToken,
             ExpiresAt = result.ExpiresAt,
             User = new UserInfo
@@ -245,7 +244,6 @@ public class AuthController : ControllerBase
             },
             UserId = result.UserId,
             Email = result.Email,
-            Roles = result.Roles,
             Message = result.Message
         });
     }
