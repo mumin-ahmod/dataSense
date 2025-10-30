@@ -9,15 +9,18 @@ public class ApiKeyAuthenticationMiddleware
     private readonly RequestDelegate _next;
     private readonly ILogger<ApiKeyAuthenticationMiddleware> _logger;
     private readonly ISubscriptionService _subscriptionService;
+    private readonly IProjectService _projectService;
 
     public ApiKeyAuthenticationMiddleware(
         RequestDelegate next, 
         ILogger<ApiKeyAuthenticationMiddleware> logger,
-        ISubscriptionService subscriptionService)
+        ISubscriptionService subscriptionService,
+        IProjectService projectService)
     {
         _next = next;
         _logger = logger;
         _subscriptionService = subscriptionService;
+        _projectService = projectService;
     }
 
     public async Task InvokeAsync(HttpContext context, IApiKeyService apiKeyService)
@@ -31,6 +34,7 @@ public class ApiKeyAuthenticationMiddleware
         }
 
         string? apiKey = null;
+        string? projectKey = null;
 
         // Try to get API key from Authorization header
         if (context.Request.Headers.TryGetValue("Authorization", out var authHeader))
@@ -44,12 +48,35 @@ public class ApiKeyAuthenticationMiddleware
             {
                 apiKey = authValue.Substring("ApiKey ".Length).Trim();
             }
+            else if (authValue.StartsWith("ProjectKey ", StringComparison.OrdinalIgnoreCase))
+            {
+                projectKey = authValue.Substring("ProjectKey ".Length).Trim();
+            }
         }
 
         // Try to get from query string as fallback
         if (string.IsNullOrEmpty(apiKey) && context.Request.Query.TryGetValue("apiKey", out var apiKeyQuery))
         {
             apiKey = apiKeyQuery.ToString();
+        }
+
+        // Try to get ProjectKey from headers
+        if (string.IsNullOrEmpty(projectKey))
+        {
+            if (context.Request.Headers.TryGetValue("X-Project-Key", out var pkHeader))
+            {
+                projectKey = pkHeader.ToString();
+            }
+            else if (context.Request.Headers.TryGetValue("ProjectKey", out var pkHeader2))
+            {
+                projectKey = pkHeader2.ToString();
+            }
+        }
+
+        // Try to get from query string as fallback
+        if (string.IsNullOrEmpty(projectKey) && context.Request.Query.TryGetValue("projectKey", out var projectKeyQuery))
+        {
+            projectKey = projectKeyQuery.ToString();
         }
 
         if (!string.IsNullOrEmpty(apiKey))
@@ -80,6 +107,28 @@ public class ApiKeyAuthenticationMiddleware
 
                 context.Items["UserId"] = result.UserId;
                 context.Items["ApiKeyId"] = result.ApiKeyId;
+
+                // If a ProjectKey was provided, validate and attach ProjectId
+                if (!string.IsNullOrEmpty(projectKey))
+                {
+                    var projectValidation = await _projectService.ValidateProjectKeyAsync(projectKey);
+                    if (!projectValidation.Success || string.IsNullOrEmpty(projectValidation.ProjectId))
+                    {
+                        context.Response.StatusCode = 401; // Unauthorized
+                        await context.Response.WriteAsJsonAsync(new { error = "Invalid or expired Project key" });
+                        return;
+                    }
+
+                    // Ensure the project belongs to the same user as the API key
+                    if (!string.Equals(projectValidation.UserId, result.UserId, StringComparison.Ordinal))
+                    {
+                        context.Response.StatusCode = 403; // Forbidden
+                        await context.Response.WriteAsJsonAsync(new { error = "Project does not belong to this API key owner" });
+                        return;
+                    }
+
+                    context.Items["ProjectId"] = projectValidation.ProjectId;
+                }
             }
             else
             {

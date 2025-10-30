@@ -60,6 +60,22 @@ public sealed class ApiKeyValidationResult
     public string? ApiKeyId { get; init; }
 }
 
+// Project Service
+public interface IProjectService
+{
+    Task<string> GenerateProjectKeyAsync(string userId, string projectName);
+    Task<ProjectValidationResult> ValidateProjectKeyAsync(string projectKey);
+    Task<Project?> GetProjectByIdAsync(string projectId);
+    Task<List<Project>> GetProjectsByUserAsync(string userId);
+}
+
+public sealed class ProjectValidationResult
+{
+    public bool Success { get; init; }
+    public string? UserId { get; init; }
+    public string? ProjectId { get; init; }
+}
+
 // Conversation Service
 public interface IConversationService
 {

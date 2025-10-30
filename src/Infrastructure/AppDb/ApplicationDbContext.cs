@@ -21,6 +21,7 @@ namespace DataSenseAPI.Infrastructure.AppDb
         public DbSet<UserSubscription> UserSubscriptions => Set<UserSubscription>();
         public DbSet<UsageRequest> UsageRequests => Set<UsageRequest>();
         public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
+        public DbSet<Project> Projects => Set<Project>();
 
         protected override void OnModelCreating(ModelBuilder builder)
         {
@@ -52,7 +53,9 @@ namespace DataSenseAPI.Infrastructure.AppDb
                 entity.HasKey(e => e.Id);
                 entity.Property(e => e.Id).HasColumnName("conversation_id");
                 entity.Property(e => e.ApiKeyId).HasColumnName("api_key_id");
+                entity.Property(e => e.ProjectId).HasColumnName("project_id");
                 entity.HasIndex(e => e.ApiKeyId).HasDatabaseName("idx_conversations_api_key");
+                entity.HasIndex(e => e.ProjectId).HasDatabaseName("idx_conversations_project_id");
                 // Note: UserId, ExternalUserId, Type, PlatformType are new fields not in original table
                 // They will be added via migration if needed
             });
@@ -155,6 +158,26 @@ namespace DataSenseAPI.Infrastructure.AppDb
                 entity.HasIndex(e => e.UserId);
                 entity.HasIndex(e => e.Token);
                 entity.HasIndex(e => new { e.UserId, e.IsRevoked });
+            });
+
+            // Configure Project - NEW table for project classification and project key
+            builder.Entity<Project>(entity =>
+            {
+                entity.ToTable("projects");
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Id).HasColumnName("project_id");
+                entity.Property(e => e.UserId).HasColumnName("user_id");
+                entity.Property(e => e.Name).HasColumnName("name");
+                entity.Property(e => e.Description).HasColumnName("description");
+                entity.Property(e => e.MessageChannel).HasColumnName("message_channel");
+                entity.Property(e => e.ChannelNumber).HasColumnName("channel_number");
+                entity.Property(e => e.IsActive).HasColumnName("is_active");
+                entity.Property(e => e.CreatedAt).HasColumnName("created_at");
+                entity.Property(e => e.UpdatedAt).HasColumnName("updated_at");
+                entity.Property(e => e.ProjectKeyHash).HasColumnName("project_key_hash");
+                entity.HasIndex(e => e.UserId).HasDatabaseName("idx_projects_user_id");
+                entity.HasIndex(e => e.ProjectKeyHash).HasDatabaseName("idx_projects_project_key_hash");
+                entity.HasIndex(e => new { e.UserId, e.IsActive }).HasDatabaseName("idx_projects_user_active");
             });
         }
     }

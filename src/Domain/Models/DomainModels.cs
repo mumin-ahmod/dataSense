@@ -65,6 +65,7 @@ public class Conversation
     public string Id { get; set; } = Guid.NewGuid().ToString();
     public string UserId { get; set; } = string.Empty;
     public string? ApiKeyId { get; set; }
+    public string? ProjectId { get; set; }
     public ConversationType Type { get; set; } = ConversationType.Regular;
     public string? PlatformType { get; set; } // "whatsapp", "telegram", etc.
     public string? ExternalUserId { get; set; } // For platform-based chats
@@ -189,6 +190,22 @@ public class RefreshToken
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public bool IsRevoked { get; set; } = false;
     public string? ReplacedByToken { get; set; }
+}
+
+
+// Projects and Project Keys
+public class Project
+{
+    public string Id { get; set; } = Guid.NewGuid().ToString();
+    public string UserId { get; set; } = string.Empty;
+    public string Name { get; set; } = string.Empty;
+    public string? Description { get; set; }
+    public string MessageChannel { get; set; } = "telegram"; // aligns with message_channels names
+    public string? ChannelNumber { get; set; } // e.g., phone/handle for the channel
+    public bool IsActive { get; set; } = true;
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public DateTime? UpdatedAt { get; set; }
+    public string ProjectKeyHash { get; set; } = string.Empty; // hashed classification key
 }
 
 
