@@ -31,6 +31,18 @@ services:
     depends_on:
       - zookeeper
 
+  kafka-setup:
+    image: confluentinc/cp-kafka:7.6.0
+    depends_on:
+      - kafka
+    entrypoint: [ "/bin/bash", "-c" ]
+    command: |
+      "sleep 30 &&
+      kafka-topics --create --topic datasense-ollama-requests --bootstrap-server kafka:9092 --replication-factor 1 --partitions 3 --if-not-exists &&
+      kafka-topics --create --topic datasense-request-logs --bootstrap-server kafka:9092 --replication-factor 1 --partitions 1 --if-not-exists &&
+      kafka-topics --create --topic datasense-pricing --bootstrap-server kafka:9092 --replication-factor 1 --partitions 1 --if-not-exists"
+    restart: "no"
+
   redis:
     image: redis:latest
     ports:

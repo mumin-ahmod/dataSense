@@ -11,6 +11,9 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Hosting.Server;
+using Microsoft.AspNetCore.Hosting.Server.Features;
+using System.Linq;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -24,7 +27,8 @@ builder.Services.AddMediatR(cfg => cfg.RegisterServicesFromAssembly(typeof(DataS
 
 // Infrastructure services
 builder.Services.AddHttpClient<OllamaService>();
-builder.Services.AddScoped<IOllamaService, OllamaService>();
+// Hosted services are singletons; ensure IOllamaService can be injected safely
+builder.Services.AddSingleton<IOllamaService, OllamaService>();
 builder.Services.AddScoped<ISqlSafetyValidator, SqlSafetyValidator>();
 builder.Services.AddScoped<IBackendSqlGeneratorService, BackendSqlGeneratorService>();
 builder.Services.AddScoped<IBackendResultInterpreterService, BackendResultInterpreterService>();
@@ -33,7 +37,7 @@ builder.Services.AddScoped<IBackendResultInterpreterService, BackendResultInterp
 var redisConnectionString = builder.Configuration.GetConnectionString("Redis") ?? "localhost:6379";
 builder.Services.AddSingleton<IConnectionMultiplexer>(sp =>
     ConnectionMultiplexer.Connect(redisConnectionString));
-builder.Services.AddScoped<IRedisService, RedisService>();
+builder.Services.AddSingleton<IRedisService, RedisService>();
 
 // Kafka Service
 builder.Services.AddSingleton<IKafkaService, KafkaService>();
@@ -61,6 +65,7 @@ builder.Services.AddScoped<IPricingRecordRepository, PricingRecordRepository>();
 builder.Services.AddScoped<IRefreshTokenRepository, RefreshTokenRepository>();
 builder.Services.AddScoped<ISubscriptionPlanRepository, SubscriptionPlanRepository>();
 builder.Services.AddScoped<IUserSubscriptionRepository, UserSubscriptionRepository>();
+builder.Services.AddScoped<IUsageRequestRepository, UsageRequestRepository>();
 
 // Database and Identity (for authentication only)
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
@@ -135,11 +140,57 @@ Console.WriteLine("✓ DataSense Backend API ready");
 Console.WriteLine("  Endpoints: /api/v1/backend/generate-sql, /api/v1/backend/interpret-results");
 Console.WriteLine("  Chat endpoints: /api/v1/backend/welcome-suggestions, /api/v1/backend/start-conversation, /api/v1/backend/send-message");
 
+// If URLs are pre-configured (e.g., ASPNETCORE_URLS or command-line), print them immediately
+var preConfiguredUrls = Environment.GetEnvironmentVariable("ASPNETCORE_URLS");
+if (!string.IsNullOrWhiteSpace(preConfiguredUrls))
+{
+    Console.WriteLine($"  Listening on: {preConfiguredUrls}");
+}
+
+// Print which server and addresses the app is running on
+app.Lifetime.ApplicationStarted.Register(() =>
+{
+    try
+    {
+        var environmentName = app.Environment.EnvironmentName;
+        var server = app.Services.GetService<Microsoft.AspNetCore.Hosting.Server.IServer>();
+        var addressesFeature = server?.Features.Get<IServerAddressesFeature>();
+        var addresses = addressesFeature?.Addresses;
+
+        if (addresses != null && addresses.Any())
+        {
+            foreach (var address in addresses)
+            {
+                Console.WriteLine($"✓ Hosting: {address} | Environment: {environmentName}");
+            }
+        }
+        else
+        {
+            // Fallback to configured URLs if addresses are not yet populated
+            var configuredUrls = string.Join(", ", app.Urls);
+            Console.WriteLine($"✓ Hosting: {configuredUrls} | Environment: {environmentName}");
+        }
+    }
+    catch
+    {
+        // Intentionally ignore any exceptions here to avoid impacting startup
+    }
+});
+
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
     app.UseSwaggerUI();
+
+    // Provide a helpful hint for Swagger location if URLs are known
+    if (!string.IsNullOrWhiteSpace(preConfiguredUrls))
+    {
+        foreach (var baseUrl in preConfiguredUrls.Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+        {
+            Console.WriteLine($"  Swagger UI: {baseUrl.TrimEnd('/')}" + "/swagger");
+        }
+    }
 }
 
 // Middleware order is important

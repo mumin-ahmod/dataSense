@@ -5,6 +5,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using DataSenseAPI.Application.Abstractions;
 using DataSenseAPI.Domain.Models;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace DataSenseAPI.Infrastructure.Services;
 
@@ -12,27 +13,18 @@ public class KafkaOllamaConsumer : BackgroundService
 {
     private readonly IConsumer<string, string> _consumer;
     private readonly IOllamaService _ollamaService;
-    private readonly IRedisService _redisService;
-    private readonly IConversationService _conversationService;
-    private readonly IAppMetadataService _appMetadataService;
-    private readonly IQueryDetectionService _queryDetectionService;
+    private readonly IServiceScopeFactory _scopeFactory;
     private readonly ILogger<KafkaOllamaConsumer> _logger;
     private const string OllamaRequestsTopic = "datasense-ollama-requests";
 
     public KafkaOllamaConsumer(
         IOllamaService ollamaService,
-        IRedisService redisService,
-        IConversationService conversationService,
-        IAppMetadataService appMetadataService,
-        IQueryDetectionService queryDetectionService,
+        IServiceScopeFactory scopeFactory,
         ILogger<KafkaOllamaConsumer> logger,
         IConfiguration configuration)
     {
         _ollamaService = ollamaService;
-        _redisService = redisService;
-        _conversationService = conversationService;
-        _appMetadataService = appMetadataService;
-        _queryDetectionService = queryDetectionService;
+        _scopeFactory = scopeFactory;
         _logger = logger;
 
         var bootstrapServers =
@@ -123,15 +115,21 @@ public class KafkaOllamaConsumer : BackgroundService
                 : null;
 
             // Get conversation and chat history
-            var conversation = await _conversationService.GetConversationByIdAsync(conversationId);
+            using var scope = _scopeFactory.CreateScope();
+            var conversationService = scope.ServiceProvider.GetRequiredService<IConversationService>();
+            var redisService = scope.ServiceProvider.GetRequiredService<IRedisService>();
+            var appMetadataService = scope.ServiceProvider.GetRequiredService<IAppMetadataService>();
+            var queryDetectionService = scope.ServiceProvider.GetRequiredService<IQueryDetectionService>();
+
+            var conversation = await conversationService.GetConversationByIdAsync(conversationId);
             if (conversation == null)
             {
                 _logger.LogWarning("Conversation not found: {ConversationId}", conversationId);
                 return;
             }
 
-            var history = await _redisService.GetChatHistoryAsync(conversationId);
-            var appMetadata = await _appMetadataService.GetAppMetadataAsync(conversation.UserId);
+            var history = await redisService.GetChatHistoryAsync(conversationId);
+            var appMetadata = await appMetadataService.GetAppMetadataAsync(conversation.UserId);
 
             // Build context-aware prompt
             var contextPrompt = BuildContextPrompt(prompt, history, appMetadata, metadata);
@@ -149,11 +147,11 @@ public class KafkaOllamaConsumer : BackgroundService
                 Metadata = metadata
             };
 
-            await _redisService.AddMessageToHistoryAsync(conversationId, assistantMessage);
+            await redisService.AddMessageToHistoryAsync(conversationId, assistantMessage);
 
             // Update conversation timestamp
             conversation.UpdatedAt = DateTime.UtcNow;
-            await _redisService.SaveConversationAsync(conversationId, conversation);
+            await redisService.SaveConversationAsync(conversationId, conversation);
 
             _logger.LogInformation("Processed Ollama request for conversation: {ConversationId}", conversationId);
         }
