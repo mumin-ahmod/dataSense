@@ -1,4 +1,5 @@
 using DataSenseAPI.Application.Abstractions;
+using DataSenseAPI.Domain.Models;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
@@ -7,12 +8,12 @@ namespace DataSenseAPI.Infrastructure.Services;
 
 public class UserManagementService : IUserManagementService
 {
-    private readonly UserManager<IdentityUser> _userManager;
+    private readonly UserManager<ApplicationUser> _userManager;
     private readonly RoleManager<IdentityRole> _roleManager;
     private readonly ILogger<UserManagementService> _logger;
 
     public UserManagementService(
-        UserManager<IdentityUser> userManager,
+        UserManager<ApplicationUser> userManager,
         RoleManager<IdentityRole> roleManager,
         ILogger<UserManagementService> logger)
     {

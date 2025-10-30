@@ -66,3 +66,4 @@ appsettings.Production.json
 # Keep appsettings.json.template as a template
 appsettings.local.json
 
+src/Api/appsettings.json

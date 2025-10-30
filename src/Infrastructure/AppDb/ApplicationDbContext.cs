@@ -6,7 +6,7 @@ using System.Text.Json;
 
 namespace DataSenseAPI.Infrastructure.AppDb
 {
-    public class ApplicationDbContext : IdentityDbContext<IdentityUser>
+    public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
     {
         public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options) : base(options)
         {

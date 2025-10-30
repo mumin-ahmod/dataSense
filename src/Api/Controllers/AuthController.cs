@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using DataSenseAPI.Api.Contracts;
 using DataSenseAPI.Application.Abstractions;
+using DataSenseAPI.Domain.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using System.Security.Claims;
@@ -17,14 +18,14 @@ public class AuthController : ControllerBase
     private readonly IAuthService _authService;
     private readonly IPermissionService _permissionService;
     private readonly IRefreshTokenRepository _refreshTokenRepository;
-    private readonly UserManager<IdentityUser> _userManager;
+    private readonly UserManager<ApplicationUser> _userManager;
     private readonly ILogger<AuthController> _logger;
 
     public AuthController(
         IAuthService authService, 
         IPermissionService permissionService,
         IRefreshTokenRepository refreshTokenRepository,
-        UserManager<IdentityUser> userManager,
+        UserManager<ApplicationUser> userManager,
         ILogger<AuthController> logger)
     {
         _authService = authService;
@@ -50,7 +51,7 @@ public class AuthController : ControllerBase
             });
         }
 
-        var result = await _authService.RegisterAsync(request.Email, request.Password, request.FullName);
+        var result = await _authService.RegisterAsync(request.Email, request.Password, request.FirstName, request.LastName);
 
         if (!result.Success)
         {
@@ -225,6 +226,8 @@ public class AuthController : ControllerBase
             {
                 Id = result.UserId!,
                 Email = result.Email ?? "",
+                FirstName = user?.FirstName,
+                LastName = user?.LastName,
                 PhoneNumber = user?.PhoneNumber,
                 Roles = result.Roles,
                 Permissions = menuPermissions.Select(mp => new MenuPermissionInfo
@@ -328,7 +331,17 @@ public class AuthController : ControllerBase
             return NotFound(new { error = "User not found" });
         }
 
-        // Update phone number if provided
+        // Update profile fields if provided
+        if (request.FirstName != null)
+        {
+            user.FirstName = request.FirstName;
+        }
+        
+        if (request.LastName != null)
+        {
+            user.LastName = request.LastName;
+        }
+        
         if (request.PhoneNumber != null)
         {
             user.PhoneNumber = request.PhoneNumber;
@@ -349,6 +362,8 @@ public class AuthController : ControllerBase
             {
                 id = user.Id,
                 email = user.Email,
+                firstName = user.FirstName,
+                lastName = user.LastName,
                 phoneNumber = user.PhoneNumber
             }
         });

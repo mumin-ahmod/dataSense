@@ -4,6 +4,7 @@ using DataSenseAPI.Infrastructure.Services;
 using DataSenseAPI.Infrastructure.Repositories;
 using DataSenseAPI.Infrastructure.AppDb;
 using DataSenseAPI.Api.Middleware;
+using DataSenseAPI.Domain.Models;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Identity;
 using StackExchange.Redis;
@@ -98,7 +99,7 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
 
 builder.Services
-    .AddIdentity<IdentityUser, IdentityRole>(options =>
+    .AddIdentity<ApplicationUser, IdentityRole>(options =>
     {
         // Password settings
         options.Password.RequireDigit = true;

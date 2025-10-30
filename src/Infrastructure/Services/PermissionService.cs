@@ -9,14 +9,14 @@ public class PermissionService : IPermissionService
 {
     private readonly IRolePermissionRepository _permissionRepository;
     private readonly IMenuRepository _menuRepository;
-    private readonly UserManager<IdentityUser> _userManager;
+    private readonly UserManager<ApplicationUser> _userManager;
     private readonly RoleManager<IdentityRole> _roleManager;
     private readonly ILogger<PermissionService> _logger;
 
     public PermissionService(
         IRolePermissionRepository permissionRepository,
         IMenuRepository menuRepository,
-        UserManager<IdentityUser> userManager,
+        UserManager<ApplicationUser> userManager,
         RoleManager<IdentityRole> roleManager,
         ILogger<PermissionService> logger)
     {

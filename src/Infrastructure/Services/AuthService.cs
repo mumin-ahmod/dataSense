@@ -12,8 +12,8 @@ namespace DataSenseAPI.Infrastructure.Services;
 
 public class AuthService : IAuthService
 {
-    private readonly UserManager<IdentityUser> _userManager;
-    private readonly SignInManager<IdentityUser> _signInManager;
+    private readonly UserManager<ApplicationUser> _userManager;
+    private readonly SignInManager<ApplicationUser> _signInManager;
     private readonly RoleManager<IdentityRole> _roleManager;
     private readonly ITokenService _tokenService;
     private readonly IRefreshTokenRepository _refreshTokenRepository;
@@ -24,8 +24,8 @@ public class AuthService : IAuthService
     private readonly IConfiguration _configuration;
 
     public AuthService(
-        UserManager<IdentityUser> userManager,
-        SignInManager<IdentityUser> signInManager,
+        UserManager<ApplicationUser> userManager,
+        SignInManager<ApplicationUser> signInManager,
         RoleManager<IdentityRole> roleManager,
         ITokenService tokenService,
         IRefreshTokenRepository refreshTokenRepository,
@@ -47,7 +47,7 @@ public class AuthService : IAuthService
         _configuration = configuration;
     }
 
-    public async Task<AuthResult> RegisterAsync(string email, string password, string? fullName = null)
+    public async Task<AuthResult> RegisterAsync(string email, string password, string? firstName = null, string? lastName = null)
     {
         try
         {
@@ -63,10 +63,12 @@ public class AuthService : IAuthService
             }
 
             // Create new user
-            var user = new IdentityUser
+            var user = new ApplicationUser
             {
                 UserName = email,
                 Email = email,
+                FirstName = firstName,
+                LastName = lastName,
                 EmailConfirmed = false // Require email confirmation in production
             };
 
@@ -403,7 +405,7 @@ public class AuthService : IAuthService
         }
     }
 
-    private async Task<bool> SendEmailConfirmationAsync(IdentityUser user)
+    private async Task<bool> SendEmailConfirmationAsync(ApplicationUser user)
     {
         if (user.Email == null)
         {

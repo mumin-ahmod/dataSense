@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.DependencyInjection;
+using DataSenseAPI.Domain.Models;
 
 namespace DataSenseAPI.Infrastructure.Services;
 
@@ -48,7 +49,7 @@ public class UserLockoutUnlockService : BackgroundService
     private async Task CheckAndUnlockUsersAsync(CancellationToken cancellationToken)
     {
         using var scope = _serviceProvider.CreateScope();
-        var userManager = scope.ServiceProvider.GetRequiredService<UserManager<IdentityUser>>();
+        var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
 
         _logger.LogDebug("Checking for locked out users to unlock");
 

@@ -1,10 +1,13 @@
+using System.Text.Json.Serialization;
+
 namespace DataSenseAPI.Api.Contracts;
 
 public class RegisterRequest
 {
     public string Email { get; set; } = string.Empty;
     public string Password { get; set; } = string.Empty;
-    public string? FullName { get; set; }
+    public string? FirstName { get; set; }
+    public string? LastName { get; set; }
 }
 
 public class SignInRequest
@@ -27,10 +30,17 @@ public class AuthResponse
     
     // Legacy fields for backward compatibility
     public bool Success { get; set; }
+    
+    // Exclude these fields from serialization when they are null or empty
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? AccessToken { get; set; }
+    
     public string? UserId { get; set; }
     public string? Email { get; set; }
+    
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
     public List<string> Roles { get; set; } = new();
+    
     public string? ErrorMessage { get; set; }
     public string? Message { get; set; }
     

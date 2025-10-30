@@ -108,7 +108,7 @@ public interface ITokenService
 
 public interface IAuthService
 {
-    Task<AuthResult> RegisterAsync(string email, string password, string? fullName = null);
+    Task<AuthResult> RegisterAsync(string email, string password, string? firstName = null, string? lastName = null);
     Task<AuthResult> SignInAsync(string email, string password);
     Task<AuthResult> RefreshTokenAsync(string refreshToken);
     Task<bool> RevokeTokenAsync(string refreshToken);
