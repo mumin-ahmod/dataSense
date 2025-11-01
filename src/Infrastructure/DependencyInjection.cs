@@ -102,6 +102,10 @@ public static class DependencyInjection
         services.AddScoped<IRolePermissionRepository, RolePermissionRepository>();
         services.AddScoped<IProjectRepository, ProjectRepository>();
         services.AddScoped<IMessageChannelRepository, MessageChannelRepository>();
+        services.AddScoped<IPaymentRepository, PaymentRepository>();
+        services.AddScoped<IInvoiceRepository, InvoiceRepository>();
+        services.AddScoped<IBillingEventRepository, BillingEventRepository>();
+        services.AddScoped<IUsageRecordRepository, UsageRecordRepository>();
 
         return services;
     }

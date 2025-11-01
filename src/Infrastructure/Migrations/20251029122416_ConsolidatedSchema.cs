@@ -428,75 +428,7 @@ CREATE INDEX IF NOT EXISTS idx_platform_config_platform ON platform_configs(plat
 CREATE INDEX IF NOT EXISTS idx_platform_config_active ON platform_configs(is_active) WHERE is_active = TRUE;
 ");
 
-            // 12. Create usage_requests table (partitioned)
-            migrationBuilder.Sql(@"
-CREATE TABLE IF NOT EXISTS usage_requests (
-    request_id UUID NOT NULL DEFAULT gen_random_uuid(),
-    api_key_id UUID NOT NULL REFERENCES api_keys(api_key_id),
-    user_id VARCHAR(450) REFERENCES ""AspNetUsers""(""Id"") ON DELETE SET NULL,
-    endpoint TEXT NOT NULL,
-    request_type INTEGER DEFAULT 0,
-    timestamp TIMESTAMPTZ DEFAULT NOW(),
-    status_code INTEGER DEFAULT 200,
-    processing_time_ms BIGINT,
-    metadata JSONB,
-    tokens_used INT DEFAULT 0,
-    duration_ms INT,
-    status TEXT CHECK (status IN ('success','error','timeout')) DEFAULT 'success',
-    created_at TIMESTAMPTZ DEFAULT NOW(),
-    PRIMARY KEY (request_id, created_at)
-) PARTITION BY RANGE (created_at);
-
-CREATE INDEX IF NOT EXISTS idx_usage_requests_api_key ON usage_requests(api_key_id);
-CREATE INDEX IF NOT EXISTS idx_usage_requests_created_at ON usage_requests(created_at DESC);
-CREATE INDEX IF NOT EXISTS idx_usage_requests_user_id ON usage_requests(user_id);
-CREATE INDEX IF NOT EXISTS idx_usage_requests_timestamp ON usage_requests(timestamp);
-
--- Create initial partition
-DO $$
-DECLARE start_month date := date_trunc('month', now())::date;
-DECLARE end_month date := (start_month + interval '1 month')::date;
-DECLARE part_name text := format('usage_requests_%s_%s', to_char(start_month, 'YYYY'), to_char(start_month, 'MM'));
-BEGIN
-    EXECUTE format('CREATE TABLE IF NOT EXISTS %I PARTITION OF usage_requests FOR VALUES FROM (%L) TO (%L);', part_name, start_month, end_month);
-END $$;
-");
-
-            // 13. Create request_logs table (NEW - different from usage_requests and audit_logs)
-            migrationBuilder.Sql(@"
-CREATE TABLE IF NOT EXISTS request_logs (
-    id TEXT PRIMARY KEY,
-    user_id TEXT NOT NULL,
-    api_key_id TEXT,
-    endpoint TEXT NOT NULL,
-    request_type INTEGER NOT NULL,
-    timestamp TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    status_code INTEGER NOT NULL,
-    processing_time_ms BIGINT,
-    metadata JSONB
-);
-
-CREATE INDEX IF NOT EXISTS IX_request_logs_user_id ON request_logs(user_id);
-CREATE INDEX IF NOT EXISTS IX_request_logs_timestamp ON request_logs(timestamp);
-CREATE INDEX IF NOT EXISTS IX_request_logs_api_key_id ON request_logs(api_key_id);
-");
-
-            // 14. Create pricing_records table (NEW)
-            migrationBuilder.Sql(@"
-CREATE TABLE IF NOT EXISTS pricing_records (
-    id TEXT PRIMARY KEY,
-    user_id TEXT NOT NULL,
-    request_type INTEGER NOT NULL,
-    request_count INTEGER NOT NULL,
-    cost NUMERIC(10,2) NOT NULL,
-    date TIMESTAMPTZ NOT NULL,
-    UNIQUE(user_id, date, request_type)
-);
-
-CREATE INDEX IF NOT EXISTS IX_pricing_records_user_id_date ON pricing_records(user_id, date);
-");
-
-            // 15. Create billing_events table
+            // 12. Create billing_events table
             migrationBuilder.Sql(@"
 CREATE TABLE IF NOT EXISTS billing_events (
     billing_event_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -580,39 +512,13 @@ BEGIN
 END $$;
 ");
 
-            // 19. Create materialized view for daily usage
-            migrationBuilder.Sql(@"
-CREATE MATERIALIZED VIEW IF NOT EXISTS mv_daily_usage AS
-SELECT
-    api_key_id,
-    DATE(created_at) AS usage_date,
-    COUNT(*) AS total_requests,
-    SUM(tokens_used) AS total_tokens
-FROM usage_requests
-GROUP BY api_key_id, DATE(created_at);
-
-CREATE INDEX IF NOT EXISTS idx_mv_daily_usage_date ON mv_daily_usage(usage_date DESC);
-");
         }
 
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.Sql(@"
-DROP MATERIALIZED VIEW IF EXISTS mv_daily_usage CASCADE;
-
 -- Drop partitions dynamically
-DO $$
-DECLARE r record;
-BEGIN
-  FOR r IN (
-    SELECT inhrelid::regclass AS part_name FROM pg_inherits
-    WHERE inhparent = 'usage_requests'::regclass
-  ) LOOP
-    EXECUTE format('DROP TABLE IF EXISTS %s;', r.part_name);
-  END LOOP;
-END $$;
-
 DO $$
 DECLARE r record;
 BEGIN
@@ -640,9 +546,6 @@ DROP TABLE IF EXISTS audit_logs CASCADE;
 DROP TABLE IF EXISTS invoices CASCADE;
 DROP TABLE IF EXISTS payments CASCADE;
 DROP TABLE IF EXISTS billing_events CASCADE;
-DROP TABLE IF EXISTS pricing_records CASCADE;
-DROP TABLE IF EXISTS request_logs CASCADE;
-DROP TABLE IF EXISTS usage_requests CASCADE;
 DROP TABLE IF EXISTS platform_configs CASCADE;
 DROP TABLE IF EXISTS conversation_participants CASCADE;
 DROP TABLE IF EXISTS external_users CASCADE;

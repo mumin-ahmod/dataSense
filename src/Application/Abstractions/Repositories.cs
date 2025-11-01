@@ -138,3 +138,41 @@ public interface IMessageChannelRepository
     Task<List<MessageChannel>> GetAllAsync();
 }
 
+public interface IPaymentRepository
+{
+    Task<Payment?> GetByIdAsync(string id);
+    Task<Payment?> GetByTransactionIdAsync(string transactionId);
+    Task<List<Payment>> GetByUserIdAsync(string userId);
+    Task<List<Payment>> GetBySubscriptionIdAsync(string subscriptionId);
+    Task<Payment> CreateAsync(Payment payment);
+    Task<bool> UpdateAsync(Payment payment);
+}
+
+public interface IInvoiceRepository
+{
+    Task<Invoice?> GetByIdAsync(string id);
+    Task<Invoice?> GetByInvoiceNumberAsync(string invoiceNumber);
+    Task<List<Invoice>> GetByUserIdAsync(string userId);
+    Task<List<Invoice>> GetBySubscriptionIdAsync(string subscriptionId);
+    Task<Invoice> CreateAsync(Invoice invoice);
+    Task<bool> UpdateAsync(Invoice invoice);
+}
+
+public interface IBillingEventRepository
+{
+    Task<BillingEvent?> GetByIdAsync(string id);
+    Task<BillingEvent?> GetByIdempotencyKeyAsync(string idempotencyKey);
+    Task<List<BillingEvent>> GetBySubscriptionIdAsync(string subscriptionId);
+    Task<BillingEvent> CreateAsync(BillingEvent billingEvent);
+}
+
+public interface IUsageRecordRepository
+{
+    Task<UsageRecord?> GetByIdAsync(string id);
+    Task<UsageRecord?> GetByUserIdAndDateAsync(string userId, DateTime date, RequestType? requestType = null);
+    Task<List<UsageRecord>> GetByUserIdAsync(string userId, DateTime? fromDate = null, DateTime? toDate = null);
+    Task<List<UsageRecord>> GetByApiKeyIdAsync(string apiKeyId, DateTime? fromDate = null, DateTime? toDate = null);
+    Task<UsageRecord> CreateAsync(UsageRecord record);
+    Task<bool> UpdateAsync(UsageRecord record);
+}
+

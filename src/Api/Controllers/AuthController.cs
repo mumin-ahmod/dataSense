@@ -19,6 +19,8 @@ public class AuthController : ControllerBase
     private readonly IPermissionService _permissionService;
     private readonly IRefreshTokenRepository _refreshTokenRepository;
     private readonly UserManager<ApplicationUser> _userManager;
+    private readonly IUserSubscriptionRepository _userSubscriptionRepository;
+    private readonly ISubscriptionPlanRepository _subscriptionPlanRepository;
     private readonly ILogger<AuthController> _logger;
 
     public AuthController(
@@ -26,12 +28,16 @@ public class AuthController : ControllerBase
         IPermissionService permissionService,
         IRefreshTokenRepository refreshTokenRepository,
         UserManager<ApplicationUser> userManager,
+        IUserSubscriptionRepository userSubscriptionRepository,
+        ISubscriptionPlanRepository subscriptionPlanRepository,
         ILogger<AuthController> logger)
     {
         _authService = authService;
         _permissionService = permissionService;
         _refreshTokenRepository = refreshTokenRepository;
         _userManager = userManager;
+        _userSubscriptionRepository = userSubscriptionRepository;
+        _subscriptionPlanRepository = subscriptionPlanRepository;
         _logger = logger;
     }
 
@@ -268,6 +274,47 @@ public class AuthController : ControllerBase
                 .ToList();
         }
 
+        // Get user's subscription
+        UserSubscriptionInfo? subscriptionInfo = null;
+        var userSubscription = await _userSubscriptionRepository.GetByUserIdAsync(result.UserId!);
+        if (userSubscription != null)
+        {
+            var subscriptionPlan = await _subscriptionPlanRepository.GetByIdAsync(userSubscription.SubscriptionPlanId);
+            if (subscriptionPlan != null)
+            {
+                subscriptionInfo = new UserSubscriptionInfo
+                {
+                    SubscriptionId = userSubscription.Id,
+                    PlanId = subscriptionPlan.Id,
+                    PlanName = subscriptionPlan.Name,
+                    PlanDescription = subscriptionPlan.Description,
+                    MonthlyRequestLimit = subscriptionPlan.MonthlyRequestLimit,
+                    MonthlyPrice = subscriptionPlan.MonthlyPrice,
+                    AbroadMonthlyPrice = subscriptionPlan.AbroadMonthlyPrice,
+                    StartDate = userSubscription.StartDate,
+                    EndDate = userSubscription.EndDate,
+                    IsActive = userSubscription.IsActive,
+                    UsedRequestsThisMonth = userSubscription.UsedRequestsThisMonth,
+                    LastResetDate = userSubscription.LastResetDate
+                };
+            }
+            else
+            {
+                // Subscription exists but plan not found
+                subscriptionInfo = new UserSubscriptionInfo
+                {
+                    SubscriptionId = userSubscription.Id,
+                    PlanId = userSubscription.SubscriptionPlanId,
+                    PlanName = "Unknown Plan",
+                    StartDate = userSubscription.StartDate,
+                    EndDate = userSubscription.EndDate,
+                    IsActive = userSubscription.IsActive,
+                    UsedRequestsThisMonth = userSubscription.UsedRequestsThisMonth,
+                    LastResetDate = userSubscription.LastResetDate
+                };
+            }
+        }
+
         return Ok(new AuthResponse
         {
             Success = true,
@@ -282,7 +329,8 @@ public class AuthController : ControllerBase
                 LastName = user?.LastName,
                 PhoneNumber = user?.PhoneNumber,
                 Roles = result.Roles,
-                Permissions = hierarchicalPermissions
+                Permissions = hierarchicalPermissions,
+                Subscription = subscriptionInfo
             },
             UserId = result.UserId,
             Email = result.Email,
@@ -408,6 +456,47 @@ public class AuthController : ControllerBase
                 .ToList();
         }
 
+        // Get user's subscription
+        UserSubscriptionInfo? subscriptionInfo = null;
+        var userSubscription = await _userSubscriptionRepository.GetByUserIdAsync(userId);
+        if (userSubscription != null)
+        {
+            var subscriptionPlan = await _subscriptionPlanRepository.GetByIdAsync(userSubscription.SubscriptionPlanId);
+            if (subscriptionPlan != null)
+            {
+                subscriptionInfo = new UserSubscriptionInfo
+                {
+                    SubscriptionId = userSubscription.Id,
+                    PlanId = subscriptionPlan.Id,
+                    PlanName = subscriptionPlan.Name,
+                    PlanDescription = subscriptionPlan.Description,
+                    MonthlyRequestLimit = subscriptionPlan.MonthlyRequestLimit,
+                    MonthlyPrice = subscriptionPlan.MonthlyPrice,
+                    AbroadMonthlyPrice = subscriptionPlan.AbroadMonthlyPrice,
+                    StartDate = userSubscription.StartDate,
+                    EndDate = userSubscription.EndDate,
+                    IsActive = userSubscription.IsActive,
+                    UsedRequestsThisMonth = userSubscription.UsedRequestsThisMonth,
+                    LastResetDate = userSubscription.LastResetDate
+                };
+            }
+            else
+            {
+                // Subscription exists but plan not found
+                subscriptionInfo = new UserSubscriptionInfo
+                {
+                    SubscriptionId = userSubscription.Id,
+                    PlanId = userSubscription.SubscriptionPlanId,
+                    PlanName = "Unknown Plan",
+                    StartDate = userSubscription.StartDate,
+                    EndDate = userSubscription.EndDate,
+                    IsActive = userSubscription.IsActive,
+                    UsedRequestsThisMonth = userSubscription.UsedRequestsThisMonth,
+                    LastResetDate = userSubscription.LastResetDate
+                };
+            }
+        }
+
         var userInfo = new UserInfo
         {
             Id = user.Id,
@@ -416,7 +505,8 @@ public class AuthController : ControllerBase
             LastName = user.LastName,
             PhoneNumber = user.PhoneNumber,
             Roles = roles.ToList(),
-            Permissions = hierarchicalPermissions
+            Permissions = hierarchicalPermissions,
+            Subscription = subscriptionInfo
         };
 
         return Ok(userInfo);

@@ -169,6 +169,84 @@ public class UserSubscription
     public DateTime? LastResetDate { get; set; }
 }
 
+public class Payment
+{
+    public string Id { get; set; } = Guid.NewGuid().ToString();
+    public string UserId { get; set; } = string.Empty;
+    public string SubscriptionId { get; set; } = string.Empty;
+    public string? PaymentProvider { get; set; }
+    public string? TransactionId { get; set; }
+    public decimal Amount { get; set; }
+    public string Currency { get; set; } = "USD";
+    public PaymentStatus Status { get; set; } = PaymentStatus.Pending;
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
+}
+
+public enum PaymentStatus
+{
+    Pending = 0,
+    Completed = 1,
+    Failed = 2,
+    Refunded = 3
+}
+
+public class Invoice
+{
+    public string Id { get; set; } = Guid.NewGuid().ToString();
+    public string SubscriptionId { get; set; } = string.Empty;
+    public string UserId { get; set; } = string.Empty;
+    public string InvoiceNumber { get; set; } = string.Empty;
+    public DateTime? PeriodStart { get; set; }
+    public DateTime? PeriodEnd { get; set; }
+    public decimal TotalAmount { get; set; }
+    public string Currency { get; set; } = "USD";
+    public InvoicePaymentStatus PaymentStatus { get; set; } = InvoicePaymentStatus.Unpaid;
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+}
+
+public enum InvoicePaymentStatus
+{
+    Unpaid = 0,
+    Paid = 1,
+    Failed = 2,
+    Refunded = 3
+}
+
+public class UsageRecord
+{
+    public string Id { get; set; } = Guid.NewGuid().ToString();
+    public string UserId { get; set; } = string.Empty;
+    public string? ApiKeyId { get; set; }
+    public RequestType RequestType { get; set; }
+    public int RequestCount { get; set; }
+    public int RequestLeft { get; set; }
+    public DateTime Date { get; set; } = DateTime.UtcNow.Date;
+}
+
+public class BillingEvent
+{
+    public string Id { get; set; } = Guid.NewGuid().ToString();
+    public string SubscriptionId { get; set; } = string.Empty;
+    public string? ApiKeyId { get; set; }
+    public string? RequestId { get; set; }
+    public int? TokensUsed { get; set; }
+    public decimal? EstimatedCost { get; set; }
+    public BillingEventType EventType { get; set; }
+    public string IdempotencyKey { get; set; } = string.Empty;
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+}
+
+public enum BillingEventType
+{
+    Request = 0,
+    Overage = 1,
+    Subscription = 2,
+    Refund = 3,
+    Cart = 4,
+    Initiated = 5
+}
+
 public class UsageRequest
 {
     public string Id { get; set; } = Guid.NewGuid().ToString();

@@ -4,6 +4,7 @@ using MediatR;
 using DataSenseAPI.Application.Commands.SubscriptionPlan;
 using DataSenseAPI.Application.Queries.SubscriptionPlan;
 using DataSenseAPI.Domain.Models;
+using System.Security.Claims;
 
 namespace DataSenseAPI.Controllers;
 
@@ -21,6 +22,13 @@ public class SubscriptionPlanController : ControllerBase
     {
         _mediator = mediator;
         _logger = logger;
+    }
+
+    private string GetUserId()
+    {
+        return User.FindFirstValue(ClaimTypes.NameIdentifier)
+            ?? User.FindFirst("UserId")?.Value
+            ?? throw new UnauthorizedAccessException("User ID not found in token");
     }
 
     /// <summary>
@@ -227,6 +235,98 @@ public class SubscriptionPlanController : ControllerBase
             return StatusCode(500, new { error = "Failed to delete subscription plan", message = ex.Message });
         }
     }
+
+    /// <summary>
+    /// Buy a subscription plan (initiate payment)
+    /// </summary>
+    [HttpPost("{planId}/buy")]
+    [Authorize]
+    public async Task<ActionResult<BuySubscriptionResponse>> BuySubscription(string planId, [FromBody] BuySubscriptionRequest request)
+    {
+        try
+        {
+            var userId = GetUserId();
+            var command = new BuySubscriptionCommand(
+                userId,
+                planId,
+                request.PaymentProvider,
+                request.IsAbroad
+            );
+
+            var result = await _mediator.Send(command);
+            return Ok(result);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { error = ex.Message });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error buying subscription for plan {PlanId}", planId);
+            return StatusCode(500, new { error = "Failed to buy subscription", message = ex.Message });
+        }
+    }
+
+    /// <summary>
+    /// Process payment after successful payment
+    /// </summary>
+    [HttpPost("payments/{paymentId}/process")]
+    [Authorize]
+    public async Task<IActionResult> ProcessPayment(string paymentId, [FromBody] ProcessPaymentRequest request)
+    {
+        try
+        {
+            var command = new ProcessPaymentCommand(
+                paymentId,
+                request.TransactionId,
+                request.PaymentProvider
+            );
+
+            var result = await _mediator.Send(command);
+            
+            if (!result)
+            {
+                return BadRequest(new { error = "Failed to process payment" });
+            }
+
+            return Ok(new { success = true, message = "Payment processed successfully" });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error processing payment {PaymentId}", paymentId);
+            return StatusCode(500, new { error = "Failed to process payment", message = ex.Message });
+        }
+    }
+
+    /// <summary>
+    /// Generate API key for the current user
+    /// </summary>
+    [HttpPost("api-keys/generate")]
+    [Authorize]
+    public async Task<ActionResult<GenerateApiKeyResponse>> GenerateApiKey([FromBody] GenerateApiKeyRequest request)
+    {
+        try
+        {
+            var userId = GetUserId();
+            var command = new GenerateApiKeyCommand(
+                userId,
+                request.Name,
+                request.Metadata
+            );
+
+            var result = await _mediator.Send(command);
+            return Ok(result);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { error = ex.Message });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error generating API key");
+            return StatusCode(500, new { error = "Failed to generate API key", message = ex.Message });
+        }
+    }
 }
 
 // Request DTOs
@@ -250,6 +350,25 @@ public class UpdateSubscriptionPlanRequest
     public decimal? AbroadMonthlyPrice { get; set; }
     public bool IsActive { get; set; } = true;
     public Dictionary<string, object>? Features { get; set; }
+}
+
+// Request DTOs for new endpoints
+public class BuySubscriptionRequest
+{
+    public string? PaymentProvider { get; set; }
+    public bool IsAbroad { get; set; } = false;
+}
+
+public class ProcessPaymentRequest
+{
+    public string TransactionId { get; set; } = string.Empty;
+    public string PaymentProvider { get; set; } = string.Empty;
+}
+
+public class GenerateApiKeyRequest
+{
+    public string Name { get; set; } = string.Empty;
+    public Dictionary<string, object>? Metadata { get; set; }
 }
 
 // Response DTOs

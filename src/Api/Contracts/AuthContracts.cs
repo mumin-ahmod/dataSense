@@ -66,6 +66,23 @@ public class UserInfo
     public List<MenuPermissionInfo> Permissions { get; set; } = new();
     public string? AgencyId { get; set; }
     public string? EmployeeId { get; set; }
+    public UserSubscriptionInfo? Subscription { get; set; }
+}
+
+public class UserSubscriptionInfo
+{
+    public string SubscriptionId { get; set; } = string.Empty;
+    public string PlanId { get; set; } = string.Empty;
+    public string PlanName { get; set; } = string.Empty;
+    public string? PlanDescription { get; set; }
+    public int MonthlyRequestLimit { get; set; }
+    public decimal MonthlyPrice { get; set; }
+    public decimal? AbroadMonthlyPrice { get; set; }
+    public DateTime StartDate { get; set; }
+    public DateTime? EndDate { get; set; }
+    public bool IsActive { get; set; }
+    public int UsedRequestsThisMonth { get; set; }
+    public DateTime? LastResetDate { get; set; }
 }
 
 public class MenuPermissionInfo
