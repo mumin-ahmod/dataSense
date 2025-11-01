@@ -27,12 +27,11 @@ public class TokenService : ITokenService
 
     public Task<string> GenerateAccessTokenAsync(string userId, string email, string? userName, IList<string> roles)
     {
+        // Claims: user id, email, and roles
         var claims = new List<Claim>
         {
             new Claim(ClaimTypes.NameIdentifier, userId),
-            new Claim(ClaimTypes.Email, email ?? ""),
-            new Claim(ClaimTypes.Name, userName ?? ""),
-            new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
+            new Claim(ClaimTypes.Email, email ?? string.Empty)
         };
 
         // Add roles
@@ -41,18 +40,21 @@ public class TokenService : ITokenService
             claims.Add(new Claim(ClaimTypes.Role, role));
         }
 
-        var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_jwtSecret));
-        var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
+        var signingKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_jwtSecret));
+        var signingCredentials = new SigningCredentials(signingKey, SecurityAlgorithms.HmacSha256);
 
-        var token = new JwtSecurityToken(
-            issuer: _issuer,
-            audience: _audience,
-            claims: claims,
-            expires: DateTime.UtcNow.AddMinutes(AccessTokenExpiryMinutes),
-            signingCredentials: creds
-        );
+        var tokenDescriptor = new SecurityTokenDescriptor
+        {
+            Subject = new ClaimsIdentity(claims),
+            Expires = DateTime.UtcNow.AddMinutes(AccessTokenExpiryMinutes),
+            Issuer = _issuer,
+            Audience = _audience,
+            SigningCredentials = signingCredentials
+        };
 
-        var tokenString = new JwtSecurityTokenHandler().WriteToken(token);
+        var tokenHandler = new JwtSecurityTokenHandler();
+        var token = tokenHandler.CreateToken(tokenDescriptor);
+        var tokenString = tokenHandler.WriteToken(token);
         return Task.FromResult(tokenString);
     }
 

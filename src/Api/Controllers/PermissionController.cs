@@ -12,7 +12,7 @@ namespace DataSenseAPI.Controllers;
 /// </summary>
 [ApiController]
 [Route("api/v1/permission")]
-[Authorize(Policy = "SystemAdminOnly")]
+[Authorize(Policy = "SystemAdmin")]
 public class PermissionController : ControllerBase
 {
     private readonly IPermissionService _permissionService;

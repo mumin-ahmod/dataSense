@@ -11,7 +11,7 @@ namespace DataSenseAPI.Controllers;
 /// </summary>
 [ApiController]
 [Route("api/v1/menu")]
-[Authorize(Policy = "SystemAdminOnly")]
+[Authorize(Policy = "SystemAdmin")]
 public class MenuController : ControllerBase
 {
     private readonly IMenuService _menuService;

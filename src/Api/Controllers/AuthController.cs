@@ -216,6 +216,58 @@ public class AuthController : ControllerBase
         
         var user = await _userManager.FindByIdAsync(result.UserId!);
 
+        // Convert to MenuPermissionInfo and build hierarchical structure
+        var allPermissions = menuPermissions.Select(mp => new MenuPermissionInfo
+        {
+            MenuId = mp.MenuId,
+            MenuName = mp.MenuName,
+            DisplayName = mp.DisplayName,
+            Icon = mp.Icon,
+            Url = mp.Url,
+            ParentId = mp.ParentId,
+            Order = mp.Order,
+            CanView = mp.CanView,
+            CanCreate = mp.CanCreate,
+            CanEdit = mp.CanEdit,
+            CanDelete = mp.CanDelete,
+            Children = new List<MenuPermissionInfo>()
+        }).ToList();
+
+        // Build hierarchical structure
+        var permissionDict = allPermissions.ToDictionary(p => p.MenuId);
+        var hierarchicalPermissions = new List<MenuPermissionInfo>();
+
+        foreach (var permission in allPermissions)
+        {
+            if (permission.ParentId.HasValue)
+            {
+                // This is a child menu - add it to its parent's Children list
+                if (permissionDict.TryGetValue(permission.ParentId.Value, out var parent))
+                {
+                    parent.Children.Add(permission);
+                }
+            }
+            else
+            {
+                // This is a top-level menu
+                hierarchicalPermissions.Add(permission);
+            }
+        }
+
+        // Sort by Order and sort children within each parent
+        hierarchicalPermissions = hierarchicalPermissions
+            .OrderBy(p => p.Order)
+            .ThenBy(p => p.MenuId)
+            .ToList();
+
+        foreach (var permission in hierarchicalPermissions)
+        {
+            permission.Children = permission.Children
+                .OrderBy(c => c.Order)
+                .ThenBy(c => c.MenuId)
+                .ToList();
+        }
+
         return Ok(new AuthResponse
         {
             Success = true,
@@ -230,20 +282,7 @@ public class AuthController : ControllerBase
                 LastName = user?.LastName,
                 PhoneNumber = user?.PhoneNumber,
                 Roles = result.Roles,
-                Permissions = menuPermissions.Select(mp => new MenuPermissionInfo
-                {
-                    MenuId = mp.MenuId,
-                    MenuName = mp.MenuName,
-                    DisplayName = mp.DisplayName,
-                    Icon = mp.Icon,
-                    Url = mp.Url,
-                    ParentId = mp.ParentId,
-                    Order = mp.Order,
-                    CanView = mp.CanView,
-                    CanCreate = mp.CanCreate,
-                    CanEdit = mp.CanEdit,
-                    CanDelete = mp.CanDelete
-                }).ToList()
+                Permissions = hierarchicalPermissions
             },
             UserId = result.UserId,
             Email = result.Email,

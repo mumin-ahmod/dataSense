@@ -58,29 +58,33 @@ public class RequestTrackingMiddleware
                 }
             };
 
-            // Save usage request asynchronously and send to Kafka for analytics
-            _ = Task.Run(async () =>
+            // Only log usage requests if API key is present (no anonymous requests)
+            if (!string.IsNullOrEmpty(apiKeyId))
             {
-                try
+                // Save usage request asynchronously and send to Kafka for analytics
+                _ = Task.Run(async () =>
                 {
-                    // Save to database (append-only)
-                    await usageRequestRepository.CreateAsync(usageRequest);
-
-                    // Send to Kafka for analytics (optional mirroring)
-                    await kafkaService.ProduceAsync("datasense-usage-requests", 
-                        System.Text.Json.JsonSerializer.Serialize(usageRequest));
-
-                    // Increment subscription usage count
-                    if (!string.IsNullOrEmpty(userId) && userId != "anonymous")
+                    try
                     {
-                        await subscriptionService.IncrementRequestCountAsync(userId);
+                        // Save to database (append-only)
+                        await usageRequestRepository.CreateAsync(usageRequest);
+
+                        // Send to Kafka for analytics (optional mirroring)
+                        await kafkaService.ProduceAsync("datasense-usage-requests", 
+                            System.Text.Json.JsonSerializer.Serialize(usageRequest));
+
+                        // Increment subscription usage count
+                        if (!string.IsNullOrEmpty(userId) && userId != "anonymous")
+                        {
+                            await subscriptionService.IncrementRequestCountAsync(userId);
+                        }
                     }
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogError(ex, "Error logging usage request");
-                }
-            });
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(ex, "Error logging usage request");
+                    }
+                });
+            }
         }
         catch (Exception ex)
         {
@@ -103,17 +107,21 @@ public class RequestTrackingMiddleware
                 }
             };
 
-            _ = Task.Run(async () =>
+            // Only log error usage requests if API key is present (no anonymous requests)
+            if (!string.IsNullOrEmpty(apiKeyId))
             {
-                try
+                _ = Task.Run(async () =>
                 {
-                    await usageRequestRepository.CreateAsync(errorRequest);
-                }
-                catch
-                {
-                    // Ignore errors in async logging
-                }
-            });
+                    try
+                    {
+                        await usageRequestRepository.CreateAsync(errorRequest);
+                    }
+                    catch
+                    {
+                        // Ignore errors in async logging
+                    }
+                });
+            }
 
             throw;
         }

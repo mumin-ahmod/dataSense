@@ -21,11 +21,22 @@ public class UsageRequestRepository : IUsageRequestRepository
     public async Task<UsageRequest> CreateAsync(UsageRequest request)
     {
         using var connection = _connectionFactory.CreateConnection();
+        
+        // Ensure partition exists before insert (trigger will also handle this, but this is explicit)
+        // Use the timestamp from request, or current time if not set
+        var partitionDate = request.Timestamp != default ? request.Timestamp : DateTime.UtcNow;
+        await connection.ExecuteAsync("SELECT ensure_usage_requests_partition(@PartitionDate::timestamptz);", 
+            new { PartitionDate = partitionDate });
+        
+        // Insert with explicit created_at to ensure proper partition routing
+        // created_at is used for partitioning, timestamp is separate field
+        // Include all table fields: tokens_used (default 0), duration_ms (nullable), status (default 'success')
         const string sql = @"
-            INSERT INTO usage_requests (request_id, user_id, api_key_id, endpoint, request_type, timestamp, status_code, processing_time_ms, metadata)
-            VALUES (@Id::uuid, @UserId, @ApiKeyId::uuid, @Endpoint, @RequestType, @Timestamp, @StatusCode, @ProcessingTimeMs, @Metadata::jsonb)";
+            INSERT INTO usage_requests (request_id, user_id, api_key_id, endpoint, request_type, timestamp, created_at, status_code, processing_time_ms, metadata, tokens_used, duration_ms, status)
+            VALUES (@Id::uuid, @UserId, @ApiKeyId::uuid, @Endpoint, @RequestType, @Timestamp, @CreatedAt, @StatusCode, @ProcessingTimeMs, @Metadata::jsonb, COALESCE(@TokensUsed, 0), @DurationMs, COALESCE(@Status, 'success'))";
 
         var db = UsageRequestDb.FromDomain(request);
+        
         await connection.ExecuteAsync(sql, db);
         return request;
     }
@@ -153,9 +164,13 @@ public class UsageRequestRepository : IUsageRequestRepository
         public string Endpoint { get; set; } = string.Empty;
         public RequestType RequestType { get; set; }
         public DateTime Timestamp { get; set; }
+        public DateTime CreatedAt { get; set; }
         public int StatusCode { get; set; }
         public long? ProcessingTimeMs { get; set; }
         public string? Metadata { get; set; }
+        public int? TokensUsed { get; set; }
+        public int? DurationMs { get; set; }
+        public string? Status { get; set; }
 
         public static UsageRequestDb FromDomain(UsageRequest request)
         {
@@ -167,6 +182,7 @@ public class UsageRequestRepository : IUsageRequestRepository
                 Endpoint = request.Endpoint,
                 RequestType = request.RequestType,
                 Timestamp = request.Timestamp,
+                CreatedAt = request.Timestamp != default ? request.Timestamp : DateTime.UtcNow,
                 StatusCode = request.StatusCode,
                 ProcessingTimeMs = request.ProcessingTimeMs,
                 Metadata = request.Metadata != null ? JsonSerializer.Serialize(request.Metadata) : null

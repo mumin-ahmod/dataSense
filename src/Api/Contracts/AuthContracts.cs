@@ -81,6 +81,7 @@ public class MenuPermissionInfo
     public bool CanCreate { get; set; }
     public bool CanEdit { get; set; }
     public bool CanDelete { get; set; }
+    public List<MenuPermissionInfo> Children { get; set; } = new();
 }
 
 public class UpdateProfileRequest

@@ -15,6 +15,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Hosting.Server;
 using Microsoft.AspNetCore.Hosting.Server.Features;
 using System.Linq;
+using System.Security.Claims;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -123,6 +124,8 @@ builder.Services
 builder.Services.AddAuthorization(options =>
 {
     options.AddPolicy("SystemAdminOnly", policy => policy.RequireRole("SystemAdmin"));
+    // Align with controllers using [Authorize(Policy = "SystemAdmin")]
+    options.AddPolicy("SystemAdmin", policy => policy.RequireRole("SystemAdmin"));
     options.AddPolicy("AuthenticatedUser", policy => policy.RequireAuthenticatedUser());
 });
 
@@ -151,7 +154,9 @@ builder.Services.AddAuthentication(options =>
         ValidateAudience = true,
         ValidAudience = "datasense-api",
         ValidateLifetime = true,
-        ClockSkew = TimeSpan.Zero
+        ClockSkew = TimeSpan.Zero,
+        // Ensure role-based authorization uses the correct claim type
+        RoleClaimType = ClaimTypes.Role
     };
 });
 
