@@ -22,7 +22,7 @@ public class ApiKeyAuthenticationMiddleware
         ISubscriptionService subscriptionService,
         IProjectService projectService)
     {
-        // Skip API key authentication for health check, auth, swagger, menu, permission, projects, and message-channels endpoints, and CORS preflight
+        // Skip API key authentication for health check, auth, swagger, menu, permission, projects, message-channels, and subscription-plans API key management endpoints, and CORS preflight
         // These endpoints use JWT token authentication only (handled by [Authorize] attribute)
         if (string.Equals(context.Request.Method, "OPTIONS", StringComparison.OrdinalIgnoreCase) ||
             context.Request.Path.StartsWithSegments("/api/v1/backend/health") ||
@@ -31,6 +31,7 @@ public class ApiKeyAuthenticationMiddleware
             context.Request.Path.StartsWithSegments("/api/v1/permission") ||
             context.Request.Path.StartsWithSegments("/api/v1/projects") ||
             context.Request.Path.StartsWithSegments("/api/v1/message-channels") ||
+            context.Request.Path.StartsWithSegments("/api/v1/subscription-plans/api-keys") ||
             context.Request.Path.StartsWithSegments("/swagger"))
         {
             await _next(context);
