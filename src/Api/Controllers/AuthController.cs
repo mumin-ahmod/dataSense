@@ -330,6 +330,99 @@ public class AuthController : ControllerBase
     }
 
     /// <summary>
+    /// Get current user information
+    /// </summary>
+    [HttpGet("me")]
+    [Authorize]
+    public async Task<ActionResult<UserInfo>> GetCurrentUser()
+    {
+        var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value
+            ?? User.FindFirst("UserId")?.Value;
+
+        if (string.IsNullOrEmpty(userId))
+        {
+            return Unauthorized(new { error = "User not authenticated" });
+        }
+
+        var user = await _userManager.FindByIdAsync(userId);
+        if (user == null)
+        {
+            return NotFound(new { error = "User not found" });
+        }
+
+        // Get user roles
+        var roles = await _userManager.GetRolesAsync(user);
+
+        // Get menu permissions for user
+        var menuPermissions = await _permissionService.GetMenuPermissionsForUserAsync(userId);
+
+        // Convert to MenuPermissionInfo and build hierarchical structure
+        var allPermissions = menuPermissions.Select(mp => new MenuPermissionInfo
+        {
+            MenuId = mp.MenuId,
+            MenuName = mp.MenuName,
+            DisplayName = mp.DisplayName,
+            Icon = mp.Icon,
+            Url = mp.Url,
+            ParentId = mp.ParentId,
+            Order = mp.Order,
+            CanView = mp.CanView,
+            CanCreate = mp.CanCreate,
+            CanEdit = mp.CanEdit,
+            CanDelete = mp.CanDelete,
+            Children = new List<MenuPermissionInfo>()
+        }).ToList();
+
+        // Build hierarchical structure
+        var permissionDict = allPermissions.ToDictionary(p => p.MenuId);
+        var hierarchicalPermissions = new List<MenuPermissionInfo>();
+
+        foreach (var permission in allPermissions)
+        {
+            if (permission.ParentId.HasValue)
+            {
+                // This is a child menu - add it to its parent's Children list
+                if (permissionDict.TryGetValue(permission.ParentId.Value, out var parent))
+                {
+                    parent.Children.Add(permission);
+                }
+            }
+            else
+            {
+                // This is a top-level menu
+                hierarchicalPermissions.Add(permission);
+            }
+        }
+
+        // Sort by Order and sort children within each parent
+        hierarchicalPermissions = hierarchicalPermissions
+            .OrderBy(p => p.Order)
+            .ThenBy(p => p.MenuId)
+            .ToList();
+
+        foreach (var permission in hierarchicalPermissions)
+        {
+            permission.Children = permission.Children
+                .OrderBy(c => c.Order)
+                .ThenBy(c => c.MenuId)
+                .ToList();
+        }
+
+        var userInfo = new UserInfo
+        {
+            Id = user.Id,
+            Email = user.Email ?? "",
+            FirstName = user.FirstName,
+            LastName = user.LastName,
+            PhoneNumber = user.PhoneNumber,
+            Roles = roles.ToList(),
+            Permissions = hierarchicalPermissions
+        };
+
+        return Ok(userInfo);
+    }
+
+    /// <summary>
     /// Revoke refresh token (sign out)
     /// </summary>
     [HttpPost("revoke")]
