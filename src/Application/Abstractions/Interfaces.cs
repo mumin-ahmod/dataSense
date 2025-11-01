@@ -51,6 +51,7 @@ public interface IApiKeyService
     Task<ApiKeyValidationResult> ValidateApiKeyAsync(string apiKey);
     Task<ApiKey?> GetApiKeyByIdAsync(string apiKeyId);
     Task<bool> RevokeApiKeyAsync(string apiKeyId);
+    string RegenerateApiKeyToken(ApiKey apiKey);
 }
 
 public sealed class ApiKeyValidationResult

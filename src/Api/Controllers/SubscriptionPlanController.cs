@@ -19,15 +19,18 @@ public class SubscriptionPlanController : ControllerBase
     private readonly IMediator _mediator;
     private readonly ILogger<SubscriptionPlanController> _logger;
     private readonly IApiKeyRepository _apiKeyRepository;
+    private readonly IApiKeyService _apiKeyService;
 
     public SubscriptionPlanController(
         IMediator mediator, 
         ILogger<SubscriptionPlanController> logger,
-        IApiKeyRepository apiKeyRepository)
+        IApiKeyRepository apiKeyRepository,
+        IApiKeyService apiKeyService)
     {
         _mediator = mediator;
         _logger = logger;
         _apiKeyRepository = apiKeyRepository;
+        _apiKeyService = apiKeyService;
     }
 
     private string GetUserId()
@@ -305,12 +308,12 @@ public class SubscriptionPlanController : ControllerBase
     }
 
     /// <summary>
-    /// Get all API keys for a user. Requires userId parameter. 
-    /// Owner can get their own API keys. SystemAdmin can get any user's API keys.
+    /// Get the latest active API key for a user. Requires userId parameter. 
+    /// Owner can get their own API key. SystemAdmin can get any user's API key.
     /// </summary>
     [HttpGet("api-keys")]
     [Authorize]
-    public async Task<ActionResult<List<ApiKeyResponse>>> GetApiKeys([FromQuery] string userId)
+    public async Task<ActionResult<ApiKeyResponse>> GetApiKeys([FromQuery] string userId)
     {
         try
         {
@@ -330,21 +333,33 @@ public class SubscriptionPlanController : ControllerBase
                 return StatusCode(403, new { error = "Forbidden", message = "You can only retrieve your own API keys" });
             }
             
-            // Get API keys for the requested user (only one active API key per user)
+            // Get API keys for the requested user (ordered by creation date, newest first)
             var apiKeys = await _apiKeyRepository.GetByUserIdAsync(userId);
             
-            // Filter to only return active API keys (there should be only one)
-            var activeApiKeys = apiKeys.Where(k => k.IsActive).ToList();
+            // Get the latest active API key only
+            var latestActiveApiKey = apiKeys
+                .Where(k => k.IsActive)
+                .OrderByDescending(k => k.CreatedAt)
+                .FirstOrDefault();
             
-            var response = activeApiKeys.Select(k => new ApiKeyResponse
+            if (latestActiveApiKey == null)
             {
-                KeyId = k.Id,
-                Name = k.Name,
-                IsActive = k.IsActive,
-                CreatedAt = k.CreatedAt,
-                LastUsedAt = k.ExpiresAt, // Note: ExpiresAt actually maps to last_used_at in DB
-                UserMetadata = k.UserMetadata
-            }).ToList();
+                return NotFound(new { error = "No active API key found for this user" });
+            }
+            
+            // Regenerate the JWT token from stored claims
+            var apiKeyToken = _apiKeyService.RegenerateApiKeyToken(latestActiveApiKey);
+            
+            var response = new ApiKeyResponse
+            {
+                KeyId = latestActiveApiKey.Id,
+                Name = latestActiveApiKey.Name,
+                ApiKey = apiKeyToken,
+                IsActive = latestActiveApiKey.IsActive,
+                CreatedAt = latestActiveApiKey.CreatedAt,
+                LastUsedAt = latestActiveApiKey.ExpiresAt, // Note: ExpiresAt actually maps to last_used_at in DB
+                UserMetadata = latestActiveApiKey.UserMetadata
+            };
 
             return Ok(response);
         }
@@ -436,6 +451,7 @@ public class ApiKeyResponse
 {
     public string KeyId { get; set; } = string.Empty;
     public string Name { get; set; } = string.Empty;
+    public string ApiKey { get; set; } = string.Empty;
     public bool IsActive { get; set; }
     public DateTime CreatedAt { get; set; }
     public DateTime? LastUsedAt { get; set; }

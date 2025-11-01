@@ -151,6 +151,38 @@ public class ApiKeyService : IApiKeyService
         return await _repository.UpdateAsync(apiKey);
     }
 
+    public string RegenerateApiKeyToken(ApiKey apiKey)
+    {
+        // Regenerate JWT token from stored claims
+        var claims = new List<Claim>
+        {
+            new Claim("userId", apiKey.UserId),
+            new Claim("keyId", apiKey.Id),
+            new Claim("name", apiKey.Name)
+        };
+
+        if (apiKey.UserMetadata != null)
+        {
+            foreach (var kvp in apiKey.UserMetadata)
+            {
+                claims.Add(new Claim(kvp.Key, kvp.Value?.ToString() ?? ""));
+            }
+        }
+
+        var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_jwtSecret));
+        var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
+
+        var token = new JwtSecurityToken(
+            issuer: "datasense",
+            audience: "datasense-api",
+            claims: claims,
+            expires: DateTime.UtcNow.AddYears(1),
+            signingCredentials: creds
+        );
+
+        return new JwtSecurityTokenHandler().WriteToken(token);
+    }
+
     private static string HashApiKey(string apiKey)
     {
         var bytes = Encoding.UTF8.GetBytes(apiKey);
