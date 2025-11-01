@@ -101,6 +101,7 @@ public static class DependencyInjection
         services.AddScoped<IMenuRepository, MenuRepository>();
         services.AddScoped<IRolePermissionRepository, RolePermissionRepository>();
         services.AddScoped<IProjectRepository, ProjectRepository>();
+        services.AddScoped<IMessageChannelRepository, MessageChannelRepository>();
 
         return services;
     }

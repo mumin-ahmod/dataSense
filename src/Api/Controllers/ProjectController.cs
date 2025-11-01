@@ -118,7 +118,7 @@ public class ProjectController : ControllerBase
     }
 
     /// <summary>
-    /// Get all projects for current user
+    /// Get all projects - returns all projects across all users if user is SystemAdmin, otherwise returns projects for the current user
     /// </summary>
     [HttpGet]
     public async Task<ActionResult<List<Domain.Models.Project>>> GetProjects()
@@ -128,12 +128,14 @@ public class ProjectController : ControllerBase
             var userId = GetUserId();
             List<Domain.Models.Project> projects;
 
+            // Check role first - if SystemAdmin, return all projects across all users
             if (IsSystemAdmin())
             {
                 projects = await _mediator.Send(new GetAllProjectsQuery());
             }
             else
             {
+                // Otherwise, return projects for the current user
                 projects = await _mediator.Send(new GetProjectsByUserQuery(userId));
             }
 
@@ -148,7 +150,8 @@ public class ProjectController : ControllerBase
                 p.ChannelNumber,
                 p.IsActive,
                 p.CreatedAt,
-                p.UpdatedAt
+                p.UpdatedAt,
+                p.ProjectKeyHash
             }).ToList();
 
             return Ok(response);

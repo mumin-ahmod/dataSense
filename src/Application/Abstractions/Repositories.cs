@@ -131,3 +131,10 @@ public interface IProjectRepository
     Task<bool> UpdateProjectKeyAsync(string projectId, string keyHash);
 }
 
+public interface IMessageChannelRepository
+{
+    Task<MessageChannel?> GetByIdAsync(string id);
+    Task<MessageChannel?> GetByNameAsync(string name);
+    Task<List<MessageChannel>> GetAllAsync();
+}
+

@@ -238,4 +238,13 @@ public class RolePermission
     public string CreatedBy { get; set; } = string.Empty;
 }
 
+// Message Channels
+public class MessageChannel
+{
+    public string Id { get; set; } = Guid.NewGuid().ToString();
+    public string Name { get; set; } = string.Empty; // 'web', 'dashboard', 'telegram', 'whatsapp', 'api'
+    public string? Description { get; set; }
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+}
+
 
