@@ -149,7 +149,8 @@ public class SubscriptionPlan
     public string Name { get; set; } = string.Empty; // "Free", "Basic", etc.
     public string Description { get; set; } = string.Empty;
     public int MonthlyRequestLimit { get; set; }
-    public decimal MonthlyPrice { get; set; }
+    public decimal MonthlyPrice { get; set; } // Domestic price
+    public decimal? AbroadMonthlyPrice { get; set; } // Abroad price
     public bool IsActive { get; set; } = true;
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime? UpdatedAt { get; set; }

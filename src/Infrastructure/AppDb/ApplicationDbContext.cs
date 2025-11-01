@@ -107,6 +107,7 @@ namespace DataSenseAPI.Infrastructure.AppDb
                 entity.Property(e => e.Name).HasColumnName("name");
                 entity.Property(e => e.Description).HasColumnName("description");
                 entity.Property(e => e.MonthlyPrice).HasColumnName("monthly_price");
+                entity.Property(e => e.AbroadMonthlyPrice).HasColumnName("abroad_monthly_price");
                 entity.Property(e => e.MonthlyRequestLimit).HasColumnName("request_limit_per_month");
                 entity.Property(e => e.IsActive).HasColumnName("is_active");
                 entity.Property(e => e.CreatedAt).HasColumnName("created_at");

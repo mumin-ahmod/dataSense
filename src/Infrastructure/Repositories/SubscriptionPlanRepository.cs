@@ -23,7 +23,8 @@ public class SubscriptionPlanRepository : ISubscriptionPlanRepository
         using var connection = _connectionFactory.CreateConnection();
         const string sql = @"
             SELECT plan_id::text as Id, name as Name, description as Description, 
-                   request_limit_per_month as MonthlyRequestLimit, monthly_price as MonthlyPrice, 
+                   request_limit_per_month as MonthlyRequestLimit, monthly_price as MonthlyPrice,
+                   abroad_monthly_price as AbroadMonthlyPrice, 
                    is_active as IsActive, created_at as CreatedAt, updated_at as UpdatedAt, 
                    features::jsonb as Features
             FROM subscription_plans
@@ -38,7 +39,8 @@ public class SubscriptionPlanRepository : ISubscriptionPlanRepository
         using var connection = _connectionFactory.CreateConnection();
         const string sql = @"
             SELECT plan_id::text as Id, name as Name, description as Description, 
-                   request_limit_per_month as MonthlyRequestLimit, monthly_price as MonthlyPrice, 
+                   request_limit_per_month as MonthlyRequestLimit, monthly_price as MonthlyPrice,
+                   abroad_monthly_price as AbroadMonthlyPrice, 
                    is_active as IsActive, created_at as CreatedAt, updated_at as UpdatedAt, 
                    features::jsonb as Features
             FROM subscription_plans
@@ -53,7 +55,8 @@ public class SubscriptionPlanRepository : ISubscriptionPlanRepository
         using var connection = _connectionFactory.CreateConnection();
         const string sql = @"
             SELECT plan_id::text as Id, name as Name, description as Description, 
-                   request_limit_per_month as MonthlyRequestLimit, monthly_price as MonthlyPrice, 
+                   request_limit_per_month as MonthlyRequestLimit, monthly_price as MonthlyPrice,
+                   abroad_monthly_price as AbroadMonthlyPrice, 
                    is_active as IsActive, created_at as CreatedAt, updated_at as UpdatedAt, 
                    features::jsonb as Features
             FROM subscription_plans
@@ -68,8 +71,8 @@ public class SubscriptionPlanRepository : ISubscriptionPlanRepository
     {
         using var connection = _connectionFactory.CreateConnection();
         const string sql = @"
-            INSERT INTO subscription_plans (plan_id, name, description, request_limit_per_month, monthly_price, is_active, created_at, updated_at, features)
-            VALUES (@Id::uuid, @Name, @Description, @MonthlyRequestLimit, @MonthlyPrice, @IsActive, @CreatedAt, @UpdatedAt, @Features::jsonb)
+            INSERT INTO subscription_plans (plan_id, name, description, request_limit_per_month, monthly_price, abroad_monthly_price, is_active, created_at, updated_at, features)
+            VALUES (@Id::uuid, @Name, @Description, @MonthlyRequestLimit, @MonthlyPrice, @AbroadMonthlyPrice, @IsActive, @CreatedAt, @UpdatedAt, @Features::jsonb)
             RETURNING *";
 
         var db = SubscriptionPlanDb.FromDomain(plan);
@@ -86,6 +89,7 @@ public class SubscriptionPlanRepository : ISubscriptionPlanRepository
                 description = @Description,
                 request_limit_per_month = @MonthlyRequestLimit,
                 monthly_price = @MonthlyPrice,
+                abroad_monthly_price = @AbroadMonthlyPrice,
                 is_active = @IsActive,
                 updated_at = @UpdatedAt,
                 features = @Features::jsonb
@@ -111,6 +115,7 @@ public class SubscriptionPlanRepository : ISubscriptionPlanRepository
         public string Description { get; set; } = string.Empty;
         public int MonthlyRequestLimit { get; set; }
         public decimal MonthlyPrice { get; set; }
+        public decimal? AbroadMonthlyPrice { get; set; }
         public bool IsActive { get; set; }
         public DateTime CreatedAt { get; set; }
         public DateTime? UpdatedAt { get; set; }
@@ -125,6 +130,7 @@ public class SubscriptionPlanRepository : ISubscriptionPlanRepository
                 Description = plan.Description,
                 MonthlyRequestLimit = plan.MonthlyRequestLimit,
                 MonthlyPrice = plan.MonthlyPrice,
+                AbroadMonthlyPrice = plan.AbroadMonthlyPrice,
                 IsActive = plan.IsActive,
                 CreatedAt = plan.CreatedAt,
                 UpdatedAt = plan.UpdatedAt,
@@ -141,6 +147,7 @@ public class SubscriptionPlanRepository : ISubscriptionPlanRepository
                 Description = Description,
                 MonthlyRequestLimit = MonthlyRequestLimit,
                 MonthlyPrice = MonthlyPrice,
+                AbroadMonthlyPrice = AbroadMonthlyPrice,
                 IsActive = IsActive,
                 CreatedAt = CreatedAt,
                 UpdatedAt = UpdatedAt,
