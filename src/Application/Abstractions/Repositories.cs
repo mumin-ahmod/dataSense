@@ -117,3 +117,17 @@ public interface IRolePermissionRepository
     Task<bool> DeleteByMenuIdAsync(int menuId);
 }
 
+public interface IProjectRepository
+{
+    Task<Project?> GetByIdAsync(string id);
+    Task<Project?> GetByKeyHashAsync(string keyHash);
+    Task<List<Project>> GetByUserIdAsync(string userId);
+    Task<List<Project>> GetAllAsync();
+    Task<Project> CreateAsync(Project project);
+    Task<bool> UpdateAsync(Project project);
+    Task<bool> ToggleActiveAsync(string id);
+    Task<bool> DeleteAsync(string id);
+    Task<string> GetProjectKeyByProjectIdAsync(string projectId);
+    Task<bool> UpdateProjectKeyAsync(string projectId, string keyHash);
+}
+
