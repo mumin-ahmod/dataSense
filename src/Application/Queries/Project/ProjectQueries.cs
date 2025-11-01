@@ -1,13 +1,14 @@
 using MediatR;
 using DataSenseAPI.Application.Abstractions;
 using DataSenseAPI.Domain.Models;
+using ProjectEntity = DataSenseAPI.Domain.Models.Project;
 
 namespace DataSenseAPI.Application.Queries.Project;
 
 // Get Project By ID Query
-public sealed record GetProjectByIdQuery(string ProjectId) : IRequest<Project?>;
+public sealed record GetProjectByIdQuery(string ProjectId) : IRequest<ProjectEntity?>;
 
-public sealed class GetProjectByIdQueryHandler : IRequestHandler<GetProjectByIdQuery, Project?>
+public sealed class GetProjectByIdQueryHandler : IRequestHandler<GetProjectByIdQuery, ProjectEntity?>
 {
     private readonly IProjectRepository _projectRepository;
 
@@ -16,16 +17,16 @@ public sealed class GetProjectByIdQueryHandler : IRequestHandler<GetProjectByIdQ
         _projectRepository = projectRepository;
     }
 
-    public async Task<Project?> Handle(GetProjectByIdQuery request, CancellationToken cancellationToken)
+    public async Task<ProjectEntity?> Handle(GetProjectByIdQuery request, CancellationToken cancellationToken)
     {
         return await _projectRepository.GetByIdAsync(request.ProjectId);
     }
 }
 
 // Get Projects By User Query
-public sealed record GetProjectsByUserQuery(string UserId) : IRequest<List<Project>>;
+public sealed record GetProjectsByUserQuery(string UserId) : IRequest<List<ProjectEntity>>;
 
-public sealed class GetProjectsByUserQueryHandler : IRequestHandler<GetProjectsByUserQuery, List<Project>>
+public sealed class GetProjectsByUserQueryHandler : IRequestHandler<GetProjectsByUserQuery, List<ProjectEntity>>
 {
     private readonly IProjectRepository _projectRepository;
 
@@ -34,16 +35,16 @@ public sealed class GetProjectsByUserQueryHandler : IRequestHandler<GetProjectsB
         _projectRepository = projectRepository;
     }
 
-    public async Task<List<Project>> Handle(GetProjectsByUserQuery request, CancellationToken cancellationToken)
+    public async Task<List<ProjectEntity>> Handle(GetProjectsByUserQuery request, CancellationToken cancellationToken)
     {
         return await _projectRepository.GetByUserIdAsync(request.UserId);
     }
 }
 
 // Get All Projects Query (for SystemAdmin)
-public sealed record GetAllProjectsQuery() : IRequest<List<Project>>;
+public sealed record GetAllProjectsQuery() : IRequest<List<ProjectEntity>>;
 
-public sealed class GetAllProjectsQueryHandler : IRequestHandler<GetAllProjectsQuery, List<Project>>
+public sealed class GetAllProjectsQueryHandler : IRequestHandler<GetAllProjectsQuery, List<ProjectEntity>>
 {
     private readonly IProjectRepository _projectRepository;
 
@@ -52,7 +53,7 @@ public sealed class GetAllProjectsQueryHandler : IRequestHandler<GetAllProjectsQ
         _projectRepository = projectRepository;
     }
 
-    public async Task<List<Project>> Handle(GetAllProjectsQuery request, CancellationToken cancellationToken)
+    public async Task<List<ProjectEntity>> Handle(GetAllProjectsQuery request, CancellationToken cancellationToken)
     {
         return await _projectRepository.GetAllAsync();
     }

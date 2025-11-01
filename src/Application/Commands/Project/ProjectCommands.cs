@@ -1,7 +1,9 @@
 using MediatR;
 using DataSenseAPI.Application.Abstractions;
 using DataSenseAPI.Domain.Models;
+using Microsoft.Extensions.Logging;
 using System.Text;
+using ProjectEntity = DataSenseAPI.Domain.Models.Project;
 
 namespace DataSenseAPI.Application.Commands.Project;
 
@@ -36,7 +38,7 @@ public sealed class CreateProjectCommandHandler : IRequestHandler<CreateProjectC
         var projectKey = Convert.ToBase64String(keyBytes);
         var keyHash = HashProjectKey(projectKey);
 
-        var project = new Project
+        var project = new ProjectEntity
         {
             Id = Guid.NewGuid().ToString(),
             UserId = request.UserId,
