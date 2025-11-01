@@ -34,17 +34,43 @@ public class UserSubscriptionRepository : IUserSubscriptionRepository
     public async Task<UserSubscription?> GetByUserIdAsync(string userId)
     {
         using var connection = _connectionFactory.CreateConnection();
+        
+        // Trim userId to handle any whitespace issues
+        userId = userId?.Trim() ?? string.Empty;
+        
         const string sql = @"
             SELECT subscription_id::text as Id, user_id as UserId, plan_id::text as SubscriptionPlanId, 
                    start_date as StartDate, end_date as EndDate, 
                    CASE WHEN status = 'active' THEN true ELSE false END as IsActive,
                    requests_used as UsedRequestsThisMonth, last_reset_date as LastResetDate
             FROM user_subscriptions
-            WHERE user_id = @UserId AND status = 'active'
-            ORDER BY start_date DESC
+            WHERE user_id = @UserId
+            ORDER BY 
+                CASE WHEN status = 'active' THEN 0 ELSE 1 END,
+                start_date DESC
             LIMIT 1";
 
-        return await connection.QueryFirstOrDefaultAsync<UserSubscription>(sql, new { UserId = userId });
+        var result = await connection.QueryFirstOrDefaultAsync<UserSubscription>(sql, new { UserId = userId });
+        
+        // If exact match fails, try case-insensitive
+        if (result == null)
+        {
+            const string caseInsensitiveSql = @"
+                SELECT subscription_id::text as Id, user_id as UserId, plan_id::text as SubscriptionPlanId, 
+                       start_date as StartDate, end_date as EndDate, 
+                       CASE WHEN status = 'active' THEN true ELSE false END as IsActive,
+                       requests_used as UsedRequestsThisMonth, last_reset_date as LastResetDate
+                FROM user_subscriptions
+                WHERE LOWER(user_id) = LOWER(@UserId)
+                ORDER BY 
+                    CASE WHEN status = 'active' THEN 0 ELSE 1 END,
+                    start_date DESC
+                LIMIT 1";
+            
+            result = await connection.QueryFirstOrDefaultAsync<UserSubscription>(caseInsensitiveSql, new { UserId = userId });
+        }
+        
+        return result;
     }
 
     public async Task<UserSubscription> CreateAsync(UserSubscription subscription)

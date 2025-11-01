@@ -458,43 +458,54 @@ public class AuthController : ControllerBase
 
         // Get user's subscription
         UserSubscriptionInfo? subscriptionInfo = null;
-        var userSubscription = await _userSubscriptionRepository.GetByUserIdAsync(userId);
-        if (userSubscription != null)
+        try
         {
-            var subscriptionPlan = await _subscriptionPlanRepository.GetByIdAsync(userSubscription.SubscriptionPlanId);
-            if (subscriptionPlan != null)
+            var userSubscription = await _userSubscriptionRepository.GetByUserIdAsync(userId);
+            if (userSubscription != null)
             {
-                subscriptionInfo = new UserSubscriptionInfo
+                var subscriptionPlan = await _subscriptionPlanRepository.GetByIdAsync(userSubscription.SubscriptionPlanId);
+                if (subscriptionPlan != null)
                 {
-                    SubscriptionId = userSubscription.Id,
-                    PlanId = subscriptionPlan.Id,
-                    PlanName = subscriptionPlan.Name,
-                    PlanDescription = subscriptionPlan.Description,
-                    MonthlyRequestLimit = subscriptionPlan.MonthlyRequestLimit,
-                    MonthlyPrice = subscriptionPlan.MonthlyPrice,
-                    AbroadMonthlyPrice = subscriptionPlan.AbroadMonthlyPrice,
-                    StartDate = userSubscription.StartDate,
-                    EndDate = userSubscription.EndDate,
-                    IsActive = userSubscription.IsActive,
-                    UsedRequestsThisMonth = userSubscription.UsedRequestsThisMonth,
-                    LastResetDate = userSubscription.LastResetDate
-                };
-            }
-            else
-            {
-                // Subscription exists but plan not found
-                subscriptionInfo = new UserSubscriptionInfo
+                    subscriptionInfo = new UserSubscriptionInfo
+                    {
+                        SubscriptionId = userSubscription.Id,
+                        PlanId = subscriptionPlan.Id,
+                        PlanName = subscriptionPlan.Name,
+                        PlanDescription = subscriptionPlan.Description,
+                        MonthlyRequestLimit = subscriptionPlan.MonthlyRequestLimit,
+                        MonthlyPrice = subscriptionPlan.MonthlyPrice,
+                        AbroadMonthlyPrice = subscriptionPlan.AbroadMonthlyPrice,
+                        StartDate = userSubscription.StartDate,
+                        EndDate = userSubscription.EndDate,
+                        IsActive = userSubscription.IsActive,
+                        UsedRequestsThisMonth = userSubscription.UsedRequestsThisMonth,
+                        LastResetDate = userSubscription.LastResetDate
+                    };
+                }
+                else
                 {
-                    SubscriptionId = userSubscription.Id,
-                    PlanId = userSubscription.SubscriptionPlanId,
-                    PlanName = "Unknown Plan",
-                    StartDate = userSubscription.StartDate,
-                    EndDate = userSubscription.EndDate,
-                    IsActive = userSubscription.IsActive,
-                    UsedRequestsThisMonth = userSubscription.UsedRequestsThisMonth,
-                    LastResetDate = userSubscription.LastResetDate
-                };
+                    _logger.LogWarning("Subscription plan not found for SubscriptionId={SubscriptionId}, PlanId={PlanId}", 
+                        userSubscription.Id, userSubscription.SubscriptionPlanId);
+
+                    // Subscription exists but plan not found
+                    subscriptionInfo = new UserSubscriptionInfo
+                    {
+                        SubscriptionId = userSubscription.Id,
+                        PlanId = userSubscription.SubscriptionPlanId,
+                        PlanName = "Unknown Plan",
+                        StartDate = userSubscription.StartDate,
+                        EndDate = userSubscription.EndDate,
+                        IsActive = userSubscription.IsActive,
+                        UsedRequestsThisMonth = userSubscription.UsedRequestsThisMonth,
+                        LastResetDate = userSubscription.LastResetDate
+                    };
+                }
             }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving subscription for user {UserId}", userId);
+            // Don't fail the entire request, just log the error and continue without subscription info
         }
 
         var userInfo = new UserInfo
