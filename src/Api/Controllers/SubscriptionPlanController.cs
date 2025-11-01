@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Authorization;
 using MediatR;
 using DataSenseAPI.Application.Commands.SubscriptionPlan;
 using DataSenseAPI.Application.Queries.SubscriptionPlan;
+using DataSenseAPI.Application.Abstractions;
 using DataSenseAPI.Domain.Models;
 using System.Security.Claims;
 
@@ -17,11 +18,16 @@ public class SubscriptionPlanController : ControllerBase
 {
     private readonly IMediator _mediator;
     private readonly ILogger<SubscriptionPlanController> _logger;
+    private readonly IApiKeyRepository _apiKeyRepository;
 
-    public SubscriptionPlanController(IMediator mediator, ILogger<SubscriptionPlanController> logger)
+    public SubscriptionPlanController(
+        IMediator mediator, 
+        ILogger<SubscriptionPlanController> logger,
+        IApiKeyRepository apiKeyRepository)
     {
         _mediator = mediator;
         _logger = logger;
+        _apiKeyRepository = apiKeyRepository;
     }
 
     private string GetUserId()
@@ -299,6 +305,61 @@ public class SubscriptionPlanController : ControllerBase
     }
 
     /// <summary>
+    /// Get all API keys for a user. Requires userId parameter. 
+    /// Owner can get their own API keys. SystemAdmin can get any user's API keys.
+    /// </summary>
+    [HttpGet("api-keys")]
+    [Authorize]
+    public async Task<ActionResult<List<ApiKeyResponse>>> GetApiKeys([FromQuery] string userId)
+    {
+        try
+        {
+            if (string.IsNullOrEmpty(userId))
+            {
+                return BadRequest(new { error = "userId parameter is required" });
+            }
+
+            // Get current user ID from JWT claims
+            var currentUserId = GetUserId();
+            var currentUserRoles = User.FindAll(ClaimTypes.Role).Select(c => c.Value).ToList();
+            var isSystemAdmin = currentUserRoles.Contains("SystemAdmin");
+            
+            // Verify ownership or SystemAdmin role
+            if (!isSystemAdmin && currentUserId != userId)
+            {
+                return StatusCode(403, new { error = "Forbidden", message = "You can only retrieve your own API keys" });
+            }
+            
+            // Get API keys for the requested user (only one active API key per user)
+            var apiKeys = await _apiKeyRepository.GetByUserIdAsync(userId);
+            
+            // Filter to only return active API keys (there should be only one)
+            var activeApiKeys = apiKeys.Where(k => k.IsActive).ToList();
+            
+            var response = activeApiKeys.Select(k => new ApiKeyResponse
+            {
+                KeyId = k.Id,
+                Name = k.Name,
+                IsActive = k.IsActive,
+                CreatedAt = k.CreatedAt,
+                LastUsedAt = k.ExpiresAt, // Note: ExpiresAt actually maps to last_used_at in DB
+                UserMetadata = k.UserMetadata
+            }).ToList();
+
+            return Ok(response);
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            return Unauthorized(new { error = ex.Message });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving API keys");
+            return StatusCode(500, new { error = "Failed to retrieve API keys", message = ex.Message });
+        }
+    }
+
+    /// <summary>
     /// Generate API key for the current user
     /// </summary>
     [HttpPost("api-keys/generate")]
@@ -369,6 +430,16 @@ public class GenerateApiKeyRequest
 {
     public string Name { get; set; } = string.Empty;
     public Dictionary<string, object>? Metadata { get; set; }
+}
+
+public class ApiKeyResponse
+{
+    public string KeyId { get; set; } = string.Empty;
+    public string Name { get; set; } = string.Empty;
+    public bool IsActive { get; set; }
+    public DateTime CreatedAt { get; set; }
+    public DateTime? LastUsedAt { get; set; }
+    public Dictionary<string, object>? UserMetadata { get; set; }
 }
 
 // Response DTOs

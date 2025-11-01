@@ -314,14 +314,28 @@ public sealed class GenerateApiKeyCommandHandler : IRequestHandler<GenerateApiKe
             throw new InvalidOperationException("User does not have an active subscription. Please subscribe first.");
         }
 
-        // Generate API key
+        // Deactivate or delete all existing active API keys for this user (only one API key per user)
+        var existingApiKeys = await _apiKeyRepository.GetByUserIdAsync(request.UserId);
+        var activeApiKeys = existingApiKeys.Where(k => k.IsActive).ToList();
+        
+        foreach (var existingKey in activeApiKeys)
+        {
+            // Deactivate the existing key
+            existingKey.IsActive = false;
+            await _apiKeyRepository.UpdateAsync(existingKey);
+            _logger.LogInformation("Deactivated existing API key for user: UserId={UserId}, KeyId={KeyId}", 
+                request.UserId, existingKey.Id);
+        }
+
+        // Generate new API key
         var apiKey = await _apiKeyService.GenerateApiKeyAsync(request.UserId, request.Name, request.Metadata);
 
-        // Get the API key details from repository
+        // Get the newly generated API key details from repository
         var apiKeys = await _apiKeyRepository.GetByUserIdAsync(request.UserId);
-        var generatedKey = apiKeys.FirstOrDefault(k => k.Name == request.Name);
+        var generatedKey = apiKeys.FirstOrDefault(k => k.IsActive && k.Name == request.Name);
 
-        _logger.LogInformation("API key generated for user: UserId={UserId}, Name={Name}", request.UserId, request.Name);
+        _logger.LogInformation("API key generated for user: UserId={UserId}, Name={Name}, KeyId={KeyId}", 
+            request.UserId, request.Name, generatedKey?.Id ?? "unknown");
 
         return new GenerateApiKeyResponse
         {
